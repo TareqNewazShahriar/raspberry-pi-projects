@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Control LED</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+<h3 id="url" style="background-color: silver; border: 1px solid black;"></h3>
+<h1>Control LED</h1>
+<p>
+	<label><input type="checkbox" id="light" style="height:40px; width:40px;"> LED</label>
+</p>
+
+<h2 id="notify" style="display:none; border:dotted solid gray; padding: 5px; position:fixed; bottom:20px; right:10px;">Someone changed the state of the LED.</h2>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
+
+<script>
+	document.querySelector('#url').innerHTML = window.location.href;
+
+	var socket = io(); //load socket.io-client and connect to the host that serves the page
+
+	window.addEventListener("load", function () { //when page loads
+		var lightbox = document.getElementById("light");
+
+		lightbox.addEventListener("change", function () { //add event listener for when checkbox changes
+		console.log('"change" event fired with val:', this.checked);
+		socket.emit("light", { from: 'browser', val: this.checked }); //send button status to server (as 1 or 0)
+		});
+	});
+
+	socket.on('light', function (data) { //get button status from client
+		document.getElementById("light").checked = data.val; //change checkbox according to push button on Raspberry Pi
+		console.log('message from "light". data:', data);
+		if(data.to != 'connectee')
+			notify();
+	});
+
+	function notify() {
+		document.querySelector('#notify').style.display = 'block';
+		setTimeout(() => {
+			document.querySelector('#notify').style.display = 'none';
+		}, 2000);
+	}
+</script>
+</body>
+
+</html>
