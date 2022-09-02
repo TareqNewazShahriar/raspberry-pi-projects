@@ -100,7 +100,7 @@ git --version
 
 * Shutdown, reboot etc
    ```
-   sudo shutdown -now
+   sudo shutdown -h now
    ```
    ```
    sudo reboot
@@ -120,4 +120,15 @@ git --version
    Real-time process listing by CPU usage
    ```
    top
+   ```
+
+* How to run a process in the background, parmanently
+   ```
+   nohup <command_and_arguments> &
+   ```
+   `nohup` is short for "no hang-up". Ending '&' will run the command in the background.
+
+* Run Tailscale vpn
+   ```
+   sudo tailscale up
    ```
