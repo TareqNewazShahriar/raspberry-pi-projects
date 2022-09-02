@@ -9,10 +9,10 @@
 
   > **How to choose the correct version of OS**
   > - If you use the OS headless (i.e. without monitor), then install the *lite* version. Otherwise Recommended version is good to go.
-  > - If you want to the bootable memory card to use in both 32bit and 64bit raspberry pi device, then you have to install 32bit version of OS.
+  > - If you want a bootable memory card to use in both 32bit and 64bit raspberry pi device, then you have to install 32bit version of OS.
  * From Imager settings, enable hostname, SSH, Wifi, eventually configure everything.
  * Install entire *Remote Development* suite VSCode extensions to access and to do development in Raspberry PI.
- * Plug the memory card to Raspberry PI, connect to computer usb, wait for couple of minutes to load the OS.
+ * Plug the memory card to Raspberry PI, connect to the computer usb, wait for couple of minutes to load the OS.
  * Go to the Router admin panel and get the IP address of the RPI OS.
  * Start creating a new remote connection on the extension.
  * When prompted for ssh user@hostname, enter in that format `ssh -p 22 <os_username>@<rpi_ip_address>`.
@@ -49,7 +49,7 @@ Enter the command below to verify the installation:
 git --version
 ```
 
-## Add command on boot
+## Add command to execute on boot
 * Open `/etc/rc.local` with root permission.
 * Add Node command with full path; then save and exit.
 
@@ -122,7 +122,7 @@ git --version
    top
    ```
 
-* How to run a process in the background, parmanently
+* How to run a process in the background, permanently
    ```
    nohup <command_and_arguments> &
    ```
