@@ -74,7 +74,7 @@ git --version
    ```
    rm -r <dir_name>
    ```
-* Remove all files of current directory, with
+* Remove all files of current directory, with recursive (-r) and force (-f) arguments:
    ```
    rm -r -f *.*
    ```
