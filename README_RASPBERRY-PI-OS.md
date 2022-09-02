@@ -94,3 +94,19 @@ git --version
    ```
    sudo nano <file_name>
    ```
+
+* List running processes
+   All processes
+   ```
+   ps -e
+   ```
+
+   Filtering processes
+   ```
+   ps -e | grep <partial_process_name> # example: ps -e | grep nod
+   ```
+
+   Real-time process listing by CPU usage
+   ```
+   top
+   ```
