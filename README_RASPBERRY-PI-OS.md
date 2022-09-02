@@ -49,7 +49,10 @@ Enter the command below to verify the installation:
 git --version
 ```
 
-## Add 
+## Add command on boot
+* Open `/etc/rc.local` with root permission.
+* Add Node command with full path; then save and exit.
+
 
 ## Useful Linux terminal commands
 
@@ -93,6 +96,14 @@ git --version
 * Open a file in terminal with *root* permission:
    ```
    sudo nano <file_name>
+   ```
+
+* Shutdown, reboot etc
+   ```
+   sudo shutdown -now
+   ```
+   ```
+   sudo reboot
    ```
 
 * List running processes
