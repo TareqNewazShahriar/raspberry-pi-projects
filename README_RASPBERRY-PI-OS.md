@@ -49,6 +49,8 @@ Enter the command below to verify the installation:
 git --version
 ```
 
+## Add 
+
 ## Useful Linux terminal commands
 
 * Update & Upgrade PI OS
@@ -86,4 +88,9 @@ git --version
    Specific directory
    ```
    sudo du -sh /home/pi
+   ```
+
+* Open a file in terminal with *root* permission:
+   ```
+   sudo nano <file_name>
    ```
