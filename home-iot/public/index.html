@@ -18,11 +18,18 @@
       <td style="font-weight: bold;">Room Humidity</td>
       <td><span id="humidity"></span></td>
    </tr>
+   <tr>
+      <td></td>
+      <td><button id="stat">PI Status</button></td>
+   </tr>
 </table>
+
 <div>
 	<label><input type="checkbox" id="light" style="height:25px; width:25px;"> LED</label>
 </div>
-<div id="notify" style="background-color:black; border:inset black; bottom:0; color: whitesmoke; height: 30vh; padding: 5px; position:fixed; width:100%;"></div>
+<div style="background-color:black; border:inset black; bottom:0; color: whitesmoke; height: 30vh; padding: 5px; position:fixed; overflow-y: auto; width:100%;">
+   <pre id="notify"></pre>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
 <script>
@@ -34,8 +41,8 @@
 		var lightbox = document.getElementById("light");
 
 		lightbox.addEventListener("change", function () { //add event listener for when checkbox changes
-		console.log('"change" event fired with val:', this.checked);
-		socket.emit("light", { from: 'browser', val: this.checked }); //send button status to server (as 1 or 0)
+   		console.log('"change" event fired with val:', this.checked);
+   		socket.emit("light", { from: 'browser', val: this.checked }); //send button status to server (as 1 or 0)
 		});
 	});
 
@@ -60,9 +67,15 @@
       }
 	});
 
+   document.querySelector('#stat')
+      .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
+   socket.on('pi-stat', function (data) {
+      notify(data.val || data.error.toString())
+   })
+
 	function notify(msg) {
       let notifyElem = document.querySelector('#notify');
-      notifyElem.innerHTML = msg + '<br>' + notifyElem.innerHTML;
+      notifyElem.innerHTML = msg + '\n' + notifyElem.innerHTML;
 	}
 </script>
 </body>

@@ -187,6 +187,11 @@ git --version
    cat /sys/class/thermal/thermal_zone0/temp
    ```
 
+* Top 10 processes based on Cpu usage:
+   ```sh
+   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10
+   ```
+
 * Memory status
    ```sh
    free -h

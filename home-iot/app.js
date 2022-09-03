@@ -5,21 +5,6 @@ const Humiture = require('node-dht-sensor');
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const { exec } = require('child_process')
 
-exec('df -h', (error, stdout) => {
-   if (error) {
-      console.error(`exec error: ${error.toString()}`)
-      return
-   }
-
-   // split stdout on newlines, and filter to remove the ending empty string
-   //const lines = stdout.split('\n').filter(Boolean)
-
-   // entry 0 will be the headers, we want the first non-header line
-   console.log(`result, ${stdout.length}:`, stdout)
-})
-
-
-
 let _port = 8081
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
@@ -76,6 +61,12 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       if (data.from != 'server')
          socket.broadcast.emit('light', { from: 'server', val: data.val, to: 'braodcast' }); // broadcast to all connected sites about the change
    });
+
+   socket.on('pi-stat', function (data) {
+      getPiStat()
+         .then(statInfo => socket.emit('pi-stat', { from: 'server', val: statInfo, to: 'connectee' }))
+         .catch(err => socket.emit('pi-state', { from: 'server', error: err, to: 'connectee' }));
+   });
 });
 
 function blinkLed(led, i) {
@@ -92,8 +83,8 @@ function blinkLed(led, i) {
 
 function broadcastHumitureData(socket) {
    readHumiture()
-      .then(reading => socket.emit('humiture', { from: 'server', val: reading, to: 'broadcast' }))
-      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'broadcast' }));
+      .then(reading => socket.broadcast.emit('humiture', { from: 'server', val: reading, to: 'broadcast' }))
+      .catch(err => socket.broadcast.emit('humiture', { from: 'server', error: err, to: 'broadcast' }));
 }
 
 function readHumiture() {
@@ -112,5 +103,20 @@ function readHumiture() {
       catch (error) {
          reject(error)
       }
+   });
+}
+
+function getPiStat() {
+   return new Promise((resolve, reject) => {
+      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temp==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu==="; vcgencmd measure_temp; echo "===Mem Usage==="; free -h; echo "===Cpu Usage==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10;',
+         (error, stdout) => {
+            if (error) {
+               console.error(`exec error: ${error.toString()}`)
+               reject(error)
+               return
+            }
+         
+            resolve(stdout);
+         });
    });
 }
