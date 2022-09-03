@@ -53,6 +53,40 @@ git --version
 * Open `/etc/rc.local` with root permission.
 * Add Node command with full path; then save and exit.
 
+## Restart network or the OS when connection is lost
+* Create a shell script `/usr/local/bin/checkwifi.sh`.
+   ```sh
+   ping -c4 <router_ipv4> > /dev/null
+ 
+   if [ $? != 0 ] 
+   then
+     echo "No network connection, restarting wlan0"
+     /sbin/ifdown 'wlan0'
+     sleep 5
+     /sbin/ifup --force 'wlan0'
+   fi
+   ```
+
+   * Open the crontab editor by typing:
+   ```sh
+   crontab -e
+   ```
+
+   Add the following line:
+   ```sh
+   */5 * * * * /usr/bin/sudo -H /usr/local/bin/checkwifi.sh >> /dev/null 2>&1
+   ```
+   This will run the script in *checkwifi.sh* every 5 minutes, writing its output to `/dev/null` so it won't clog your syslog.
+
+   * To reboot the PI, write the following script instead in *checkwifi.sh*:
+   ```sh
+   ping -c4 <router_ipv4> > /dev/null
+    
+   if [ $? != 0 ] 
+   then
+     sudo /sbin/shutdown -r now
+   fi
+   ```
 
 ## Useful Linux terminal commands
 
@@ -131,4 +165,9 @@ git --version
 * Run Tailscale vpn
    ```
    sudo tailscale up
+   ```
+
+* Raspberry PI OS configurations
+   ```
+   sudo rasp-config
    ```

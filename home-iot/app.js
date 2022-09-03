@@ -5,8 +5,8 @@ const Humiture = require('node-dht-sensor');
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 
 let _port = 8080
-http.listen(_port);
-console.log(`Server is listening to port ${_port}...`);
+http.listen(_port)
+console.log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', function () { //on ctrl+c
