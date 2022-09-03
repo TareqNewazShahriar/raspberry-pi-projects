@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
-<body style="margin: 0; padding: 0;">
+<body>
 <h3 id="url" style="background-color: silver; border: 1px solid black;"></h3>
 <h1>Home IoT</h1>
 <table>
@@ -18,15 +18,15 @@
       <td style="font-weight: bold;">Room Humidity</td>
       <td><span id="humidity"></span></td>
    </tr>
-   <tr>
-      <td></td>
-      <td><button id="stat">PI Status</button></td>
-   </tr>
 </table>
 
-<div>
-	<label><input type="checkbox" id="light" style="height:25px; width:25px;"> LED</label>
+<div style="margin-top:20px;">
+   <label><input type="checkbox" id="light"> LED</label>
 </div>
+<div style="margin-top:20px;">
+   <button id="stat" style="padding: 7px;">PI Status</button>
+</div>
+
 <div style="background-color:black; border:inset black; bottom:0; color: whitesmoke; height: 30vh; padding: 5px; position:fixed; overflow-y: auto; width:100%;">
    <pre id="notify"></pre>
 </div>
