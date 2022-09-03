@@ -5,14 +5,14 @@
 * Plug the card reader with the memory card to the computer.
 * Run the Imager.
   > NOTE  
-  > Don't mistakenly try raspberry pi with memory card to install the OS.
+  > Don't mistakenly try the Raspberry PI with memory card to install the OS.
 
   > **How to choose the correct version of OS**
   > - If you use the OS headless (i.e. without monitor), then install the *lite* version. Otherwise Recommended version is good to go.
-  > - If you want a bootable memory card to use in both 32bit and 64bit raspberry pi device, then you have to install 32bit version of OS.
+  > - If you want a bootable memory card to use in both 32bit and 64bit raspberry pi devices, then you have to install 32bit version of OS.
  * From Imager settings, enable hostname, SSH, Wifi, eventually configure everything.
  * Install entire *Remote Development* suite VSCode extensions to access and to do development in Raspberry PI.
- * Plug the memory card to Raspberry PI, connect to the computer usb, wait for couple of minutes to load the OS.
+ * Plug the memory card to Raspberry PI, connect to the computer usb, wait for a couple of minutes to load the OS.
  * Go to the Router admin panel and get the IP address of the RPI OS.
  * Start creating a new remote connection on the extension.
  * When prompted for ssh user@hostname, enter in that format `ssh -p 22 <os_username>@<rpi_ip_address>`.
@@ -58,7 +58,7 @@ git --version
    ```sh
    ping -c4 <router_ipv4> > /dev/null
  
-   if [ $? != 0 ] 
+   if [ $? != 0 ]
    then
      echo "No network connection, restarting wlan0"
      /sbin/ifdown 'wlan0'
@@ -82,14 +82,14 @@ git --version
    ```sh
    ping -c4 <router_ipv4> > /dev/null
     
-   if [ $? != 0 ] 
+   if [ $? != 0 ]
    then
      sudo /sbin/shutdown -r now
    fi
    ```
 
 ## Useful Notes
-* Use `node` command to permanantly run node.js app. Running with `npm` command will run an extra `npm` process.
+* Use `node` command to add a node.js app on device startup. Running with `npm` command will run an extra `npm` process.
 
 ## Useful Linux terminal commands
 
@@ -215,7 +215,7 @@ git --version
    dmesg | grep voltage
    ```
 
-   Also Cpu throtle status, good value is `0x0`:
+   Also Cpu throttle status, good value is `0x0`:
    ```sh
    vcgencmd get_throttled
    ```
