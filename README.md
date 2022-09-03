@@ -7,7 +7,7 @@ Install **onoff** package globally. It will be used by all Node projects.
 npm i -g onoff
 ```
 
-## Run the *control led* app
+## Run Node.js projects
 
 * Go to project app directory and install dependencies
    ```

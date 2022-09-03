@@ -88,6 +88,9 @@ git --version
    fi
    ```
 
+## Useful Notes
+* Use `node` command to permanantly run node.js app. Running with `npm` command will run an extra `npm` process.
+
 ## Useful Linux terminal commands
 
 * Update & Upgrade PI OS
