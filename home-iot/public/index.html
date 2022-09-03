@@ -6,26 +6,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
-<body>
+<body style="margin: 0; padding: 0;">
 <h3 id="url" style="background-color: silver; border: 1px solid black;"></h3>
 <h1>Home IoT</h1>
+<table>
+   <tr>
+      <td style="font-weight: bold;">Room Temperature</td>
+      <td><span id="temp"></span></td>
+   </tr>
+   <tr>
+      <td style="font-weight: bold;">Room Humidity</td>
+      <td><span id="humidity"></span></td>
+   </tr>
+</table>
 <div>
-	<label><input type="checkbox" id="light" style="height:40px; width:40px;"> LED</label>
+	<label><input type="checkbox" id="light" style="height:25px; width:25px;"> LED</label>
 </div>
-<div>
-   <table>
-      <tr>
-         <td>Temperature</td>
-         <td><span id="temp"></span></td>
-      </tr>
-      <tr>
-         <td>Humidity</td>
-         <td><span id="humidity"></span></td>
-      </tr>
-   </table>
-</div>
-
-<div id="notify" style="display:none; border:dotted solid black; padding: 5px; position:fixed; bottom:20px; right:10px;"></div>
+<div id="notify" style="background-color:black; border:inset black; bottom:0; color: whitesmoke; height: 30vh; padding: 5px; position:fixed; width:100%;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
 <script>
@@ -50,18 +47,22 @@
 	});
 
    socket.on('humiture', function (data) { //get button status from client
-		document.getElementById("temp").innerHTML = data.val.temperature;
-      document.getElementById("humidity").innerHTML = data.val.humidity;
-		console.log('message from "humiture" event. data:', data);
+      if('val' in data) {
+         document.getElementById("temp").innerHTML = '...'
+         document.getElementById("humidity").innerHTML = '...'
+         setTimeout(() => {
+      		document.getElementById("temp").innerHTML = data.val.temperature
+            document.getElementById("humidity").innerHTML = data.val.humidity
+         }, 300);
+      }
+      else {
+         notify(`Error occurred from Humiture event.<br>[${data.error.toString()}]`);
+      }
 	});
 
 	function notify(msg) {
       let notifyElem = document.querySelector('#notify');
-      notifyElem.innerHTML = msg;
-		notifyElem.style.display = 'block';
-		setTimeout(() => {
-			notifyElem.style.display = 'none';
-		}, 2000);
+      notifyElem.innerHTML = msg + '<br>' + notifyElem.innerHTML;
 	}
 </script>
 </body>

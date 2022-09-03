@@ -4,7 +4,7 @@ const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 
-let _port = 8081
+let _port = 8080
 http.listen(_port);
 console.log(`Server is listening to port ${_port}...`);
 
@@ -49,11 +49,8 @@ LED.writeSync(OFF); // Turn off at server star.
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established. LED status', LED.readSync());
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
-   setInterval(() => {
-      readHumiture().then((reading) => {
-         socket.emit('humiture', { from: 'server', val: reading, to: 'connectee' });
-      });
-   }, DELAY);
+   broadcastHumitureData(socket);
+   setInterval(broadcastHumitureData, DELAY, socket);
    blinkLed(LED, 0);
 
    socket.on('light', function (data) { //get light switch status from client
@@ -77,16 +74,27 @@ function blinkLed(led, i) {
    );
 }
 
+function broadcastHumitureData(socket) {
+   readHumiture()
+      .then(reading => socket.emit('humiture', { from: 'server', val: reading, to: 'broadcast' }))
+      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'broadcast' }));
+}
+
 function readHumiture() {
    return new Promise((resolve, reject) => {
-      Humiture.read(11, 4, function(err, temperature, humidity) {
-         if (!err) {
-           console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
-           resolve({temperature, humidity})
-         }
-         else {
-            reject(err)
-         }
-      });
+      try {
+         Humiture.read(11, 4, function(err, temperature, humidity) {
+            if (!err) {
+              // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
+              resolve({temperature, humidity})
+            }
+            else {
+               reject(err)
+            }
+         });
+      }
+      catch (error) {
+         reject(error)
+      }
    });
 }
