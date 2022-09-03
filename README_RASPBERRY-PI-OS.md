@@ -207,3 +207,12 @@ git --version
    cat /proc/cpuinfo | grep Model
    ```
    
+* Check under-voltage warning:
+   ```sh
+   dmesg | grep voltage
+   ```
+
+   Also Cpu throtle status, good value is `0x0`:
+   ```sh
+   vcgencmd get_throttled
+   ```

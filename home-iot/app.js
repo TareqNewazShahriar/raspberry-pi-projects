@@ -108,7 +108,7 @@ function readHumiture() {
 
 function getPiStat() {
    return new Promise((resolve, reject) => {
-      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu current temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu current temperature==="; vcgencmd measure_temp; echo "===Mem Usage==="; free -h; echo "===Cpu Usage==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10;',
+      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu current temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu current temperature==="; vcgencmd measure_temp; echo "===Mem Usage==="; free -h; echo "===Cpu Usage==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10; echo "===Voltage Stat==="; dmesg | grep voltage; vcgencmd get_throttled;',
          (error, stdout) => {
             if (error) {
                console.error(`exec error: ${error.toString()}`)
