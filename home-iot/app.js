@@ -3,8 +3,24 @@ const fs = require('fs'); //require filesystem module
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
+const { exec } = require('child_process')
 
-let _port = 8080
+exec('df -h', (error, stdout) => {
+   if (error) {
+      console.error(`exec error: ${error.toString()}`)
+      return
+   }
+
+   // split stdout on newlines, and filter to remove the ending empty string
+   //const lines = stdout.split('\n').filter(Boolean)
+
+   // entry 0 will be the headers, we want the first non-header line
+   console.log(`result, ${stdout.length}:`, stdout)
+})
+
+
+
+let _port = 8081
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 

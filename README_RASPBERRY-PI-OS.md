@@ -171,3 +171,34 @@ git --version
    ```
    sudo rasp-config
    ```
+
+* GPU temperature
+   ```sh
+   vcgencmd measure_temp
+   ```
+
+   Regular expression to get only the value:
+   ```sh
+   vcgencmd measure_temp | grep  -o -E '[[:digit:]].*'
+   ```
+
+* CPU Temperature
+   ```sh
+   cat /sys/class/thermal/thermal_zone0/temp
+   ```
+
+* Memory status
+   ```sh
+   free -h
+   ```
+
+* Cpu Information
+   ```sh
+   cat /proc/cpuinfo
+   ```
+
+  Use grep to filter information:
+   ```sh
+   cat /proc/cpuinfo | grep Model
+   ```
+   
