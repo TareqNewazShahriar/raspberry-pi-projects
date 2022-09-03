@@ -41,14 +41,14 @@ function handler(req, res) {
    });
 }
 
-const DELAY = 1000 * 5
+const DELAY = 1000 * 60 * 5
 const ON = 1;
 const OFF = 0;
 var LED = new Gpio(17, 'out');
 LED.writeSync(OFF); // Turn off at server star.
 
 io.sockets.on('connection', function (socket) { // WebSocket Connection
-   console.log('socket connection established. LED status', LED.readSync());
+   console.log('socket connection established.');
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
    broadcastHumitureData(socket);
    setInterval(broadcastHumitureData, DELAY, socket);
@@ -56,7 +56,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 
    socket.on('light', function (data) { //get light switch status from client
       val = data.val | 0; // make it a number
-      console.log('message from "light" event. val:', data); //turn LED on or off, for now we will just show it in console.log
+      //console.log('message from "light" event. val:', data); //turn LED on or off, for now we will just show it in console.log
       LED.writeSync(val);
       if (data.from != 'server')
          socket.broadcast.emit('light', { from: 'server', val: data.val, to: 'braodcast' }); // broadcast to all connected sites about the change
