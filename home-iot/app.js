@@ -1,9 +1,9 @@
 const http = require('http').createServer(handler);
 const fs = require('fs'); //require filesystem module
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const Humiture = require('node-dht-sensor');
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const { exec } = require('child_process')
+const Humiture = require('node-dht-sensor');
 
 let _port = 8080
 http.listen(_port)
@@ -50,8 +50,8 @@ LED.writeSync(OFF); // Turn off at server star.
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established.');
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
-   broadcastHumitureData(socket);
-   setInterval(broadcastHumitureData, DELAY, socket);
+   sendHumitureData(socket);
+   setInterval(sendHumitureData, DELAY, socket);
    blinkLed(LED, 0);
 
    socket.on('light', function (data) { //get light switch status from client
@@ -81,10 +81,10 @@ function blinkLed(led, i) {
    );
 }
 
-function broadcastHumitureData(socket) {
+function sendHumitureData(socket) {
    readHumiture()
-      .then(reading => socket.broadcast.emit('humiture', { from: 'server', val: reading, to: 'broadcast' }))
-      .catch(err => socket.broadcast.emit('humiture', { from: 'server', error: err, to: 'broadcast' }));
+      .then(reading => socket.emit('humiture', { from: 'server', val: reading, to: 'connectee' }))
+      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'connectee' }));
 }
 
 function readHumiture() {
