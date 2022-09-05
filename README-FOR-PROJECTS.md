@@ -1,5 +1,5 @@
-# raspberry-pi-mini-projects
-All of my mini projects, test codes using raspberry PI (Zero W, PI 3)
+# raspberry-pi-projects
+All of my projects, test codes using raspberry PI (PI 3, Zero W)
 
 ## Install Packages
 Install **onoff** package globally. It will be used by all Node projects.
