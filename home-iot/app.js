@@ -63,7 +63,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 
    socket.on('pi-stat', function (data) {
-      getPiStat()
+      getPiHealthData()
          .then(statInfo => socket.emit('pi-stat', { from: 'server', val: statInfo, to: 'connectee' }))
          .catch(err => socket.emit('pi-state', { from: 'server', error: err, to: 'connectee' }));
    });
@@ -106,9 +106,9 @@ function readHumiture() {
    });
 }
 
-function getPiStat() {
+function getPiHealthData() {
    return new Promise((resolve, reject) => {
-      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu current temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu current temperature==="; vcgencmd measure_temp; echo "===Mem Usage==="; free -h; echo "===Cpu Usage==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10; echo "===Voltage condition==="; dmesg | grep voltage; vcgencmd get_throttled;',
+      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; dmesg | grep voltage; vcgencmd get_throttled;',
          (error, stdout) => {
             if (error) {
                console.error(`exec error: ${error.toString()}`)
