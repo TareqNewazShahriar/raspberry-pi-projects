@@ -219,3 +219,10 @@ git --version
    ```sh
    vcgencmd get_throttled
    ```
+
+* Save any command output to a file `<command_and_arguments> > <file_name>`.
+   Example:
+   ```sh
+   top -b -n1 > output.txt
+   ```
+   File will be saved in current directory.
