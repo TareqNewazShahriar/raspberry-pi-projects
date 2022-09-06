@@ -226,3 +226,12 @@ git --version
    top -b -n1 > output.txt
    ```
    File will be saved in current directory.
+
+* Wifi network information saved in `/etc/wpa_supplicant/wpa_supplicant.conf`.
+   To add new network information, add following block of code at the end of the file:
+   ```conf
+   network={
+      ssid="<ssid_name>"
+      psk="<plain_text_password>"
+   }
+   ```
