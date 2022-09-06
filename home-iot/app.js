@@ -5,7 +5,7 @@ const io = require('socket.io')(http) //require socket.io module and pass the ht
 const { exec } = require('child_process')
 const Humiture = require('node-dht-sensor');
 
-let _port = 8080
+let _port = 8081
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 
@@ -50,6 +50,9 @@ LED.writeSync(OFF); // Turn off at server star.
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established.');
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
+   
+   fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
+   
    sendHumitureData(socket);
    setInterval(sendHumitureData, DELAY, socket);
    blinkLed(LED, 0);
@@ -83,8 +86,13 @@ function blinkLed(led, i) {
 
 function sendHumitureData(socket) {
    readHumiture()
-      .then(reading => socket.emit('humiture', { from: 'server', val: reading, to: 'connectee' }))
-      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'connectee' }));
+      .then(reading => {
+         socket.emit('humiture', { from: 'server', val: reading, to: 'connectee' });
+         fs.appendFile(__dirname + '/output/temperature.log',
+            JSON.stringify(reading) + '\n',
+            () => {/*callback is required*/});
+      })
+      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'connectee' }))
 }
 
 function readHumiture() {
@@ -93,7 +101,7 @@ function readHumiture() {
          Humiture.read(11, 4, function(err, temperature, humidity) {
             if (!err) {
               // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
-              resolve({temperature, humidity})
+              resolve({time: new Date().toLocaleString(), temperature, humidity})
             }
             else {
                reject(err)
