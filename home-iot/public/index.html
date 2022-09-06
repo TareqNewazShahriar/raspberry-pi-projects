@@ -17,7 +17,7 @@
             <td style="font-weight: bold;">Room Humidity</td>
             <td><span id="humidity"></span></td>
          </tr>
-         <td colspan="2"><sub>(Recheck interval: 5 min.)</sub></td>
+         <td colspan="2"><sub>Last checked: <span id="last-checked"></span></sub></td>
       </table>
 
       <div style="margin-top:20px;">
@@ -56,12 +56,9 @@
 
       socket.on('humiture', function (data) { //get button status from client
          if('val' in data) {
-            document.getElementById("temp").innerHTML = '...'
-            document.getElementById("humidity").innerHTML = '...'
-            setTimeout(() => {
-         		document.getElementById("temp").innerHTML = data.val.temperature
-               document.getElementById("humidity").innerHTML = data.val.humidity
-            }, 300);
+      		document.getElementById("temp").innerHTML = data.val.temperature;
+            document.getElementById("humidity").innerHTML = data.val.humidity;
+            document.getElementById("last-checked").innerHTML = data.val.time;
          }
          else {
             notify(`Error occurred from Humiture event. [Error: ${JSON.stringify(data.error)}]`);
