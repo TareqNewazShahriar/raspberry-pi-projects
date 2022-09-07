@@ -83,7 +83,7 @@ git --version
    fi
    ```
 
-## Enable the One-Wire Interface
+## Enable the 1-Wire Interface
 *(Coutesy: circuitbasics.com)*  
 We’ll need to enable the One-Wire interface before the Pi can receive data from the sensor. Once you’ve connected the DS18B20, power up your Pi and log in, then follow these steps to enable the One-Wire interface:
 
@@ -91,8 +91,9 @@ We’ll need to enable the One-Wire interface before the Pi can receive data fro
 ```sh
 dtoverlay=w1-gpio
 ```
+If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
-* Exit Nano, and reboot the Pi with sudo reboot.
+* Exit *nano*, and reboot the Pi with `sudo reboot`.
 
 * Log in to the Pi again, and at the command prompt enter `sudo modprobe w1-gpio`. Then enter `sudo modprobe w1-therm`.
 
