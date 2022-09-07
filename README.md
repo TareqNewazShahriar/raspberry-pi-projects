@@ -19,8 +19,8 @@
 
 
 ### TroubleShooting
-* **Trouble: Problem connecting to RPI with VSCode remote explorer with previous ssh config.**  
-  Shoot: Remote the previous ssh config from the computer.
+* **Trouble**: Problem connecting to RPI with VSCode remote explorer with previous ssh config.  
+  **Shoot**: Remove the previous ssh config from the computer. On Windows, generally it is stored in `os drive/users/<username>/.ssh/config`.
 
 
 ## Install Node.js
