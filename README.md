@@ -36,7 +36,7 @@ Install Node.js from the NodeSource Repository, a third party service which reso
    ```
 
 > NOTE  
-> *Try avoiding the process of downloading installer, extracting etc. It can be a mess.*
+> *Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.*
 
 ## Install Git
 ```
