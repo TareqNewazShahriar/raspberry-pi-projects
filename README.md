@@ -18,11 +18,6 @@
  * When prompted for ssh user@hostname, enter in that format `ssh -p 22 <os_username>@<rpi_ip_address>`.
 
 
-### TroubleShooting
-* **Trouble**: Problem connecting to RPI with VSCode remote explorer with previous ssh config.  
-  **Shoot**: Remove the previous ssh config from the computer. On Windows, generally it is stored in `os drive/users/<username>/.ssh/config`.
-
-
 ## Install Node.js
 
 Install Node.js from the NodeSource Repository, a third party service which resolves the installation process.
@@ -87,6 +82,25 @@ git --version
      sudo /sbin/shutdown -r now
    fi
    ```
+
+## Enable the One-Wire Interface
+*(Coutesy: circuitbasics.com)*  
+We’ll need to enable the One-Wire interface before the Pi can receive data from the sensor. Once you’ve connected the DS18B20, power up your Pi and log in, then follow these steps to enable the One-Wire interface:
+
+* At the command prompt, enter sudo nano /boot/config.txt, then add this to the bottom of the file:
+```sh
+dtoverlay=w1-gpio
+```
+
+* Exit Nano, and reboot the Pi with sudo reboot.
+
+* Log in to the Pi again, and at the command prompt enter `sudo modprobe w1-gpio`. Then enter `sudo modprobe w1-therm`.
+
+* Change directories to the `/sys/bus/w1/devices` directory.
+
+* Enter `ls` to list the devices. Something like `28-xxxxxxxxxxx w1_bus_master1` will be displayed.
+
+* Go to `28-xxxxxxxxxxx` directory and type `cat w1_slave` to see the temperature value from sensor.
 
 ## Useful Notes
 * Use `node` command to add a node.js app on device startup. Running with `npm` command will run an extra `npm` process.
