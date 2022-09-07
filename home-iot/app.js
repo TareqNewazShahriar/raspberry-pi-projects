@@ -1,9 +1,23 @@
+const { exec } = require('child_process')
 const http = require('http').createServer(handler);
 const fs = require('fs'); //require filesystem module
-const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
-const { exec } = require('child_process')
+const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
+var Ds18x20 = require('ds18x20');
+
+Ds18x20.isDriverLoaded(function (err, isLoaded) {
+   console.log({isLoaded});
+  
+   Ds18x20.list(function (err, listOfDeviceIds) {
+      console.log(listOfDeviceIds);
+
+      Ds18x20.getAll(function (err, tempObj) {
+         console.log(tempObj);
+      });
+   });
+});
+
 
 let _port = 8081
 http.listen(_port)
@@ -98,7 +112,7 @@ function sendHumitureData(socket) {
 function readHumiture() {
    return new Promise((resolve, reject) => {
       try {
-         Humiture.read(11, 4, function(err, temperature, humidity) {
+         Humiture.read(11, 27, function(err, temperature, humidity) {
             if (!err) {
               // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
               resolve({time: new Date().toLocaleString(), temperature, humidity})

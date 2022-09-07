@@ -3,6 +3,12 @@
 <head>
    <title>Home IoT</title>
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <style>
+      th {
+         text-align: left;
+         vertical-align: top;
+      }
+   </style>
 </head>
 <body>
    <main style="margin-bottom:20px;">
@@ -10,17 +16,21 @@
       <h1>Home IoT</h1>
       <table>
          <tr>
-            <td style="font-weight: bold;">Room Temperature</td>
-            <td><span id="temp"></span></td>
+            <th>Humiture Sensor</th>
+            <td>
+               <div>Temperature: <span id="temp"></span></div>
+               <div>Humidity: <span id="humidity"></span></div>
+            </td>
          </tr>
          <tr>
-            <td style="font-weight: bold;">Room Humidity</td>
-            <td><span id="humidity"></span></td>
+            <th>Temperature Sensor (Digital)</th>
+            <td><span id="temp_sense"></span></td>
          </tr>
-         <td colspan="2"><sub>Last checked: <span id="last-checked"></span></sub></td>
       </table>
 
-      <div style="margin-top:20px;">
+      <p>Last checked: <span id="last-checked"></span></p>
+
+      <div style="display: none; margin-top:20px;">
          <label><input type="checkbox" id="light" style="height: 20px; width: 20px;"> LED</label>
       </div>
       <div style="margin-top:20px;">
