@@ -103,8 +103,15 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
 * Go to `28-xxxxxxxxxxx` directory and type `cat w1_slave` to see the temperature value from sensor.
 
+
+## TroubleShooting
+* **Trouble**: Problem connecting to RPI with VSCode remote explorer with previous ssh config.  
+  **Shoot**: Remove the previous ssh config from the computer. On Windows, generally it is stored in `os drive/users/<username>/.ssh/config`.
+
+
 ## Useful Notes
 * Use `node` command to add a node.js app on device startup. Running with `npm` command will run an extra `npm` process.
+
 
 ## Useful Linux terminal commands
 
