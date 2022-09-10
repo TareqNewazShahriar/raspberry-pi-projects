@@ -257,3 +257,6 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
       psk="<plain_text_password>"
    }
    ```
+   > IMPORTANT
+   > Don't use apostroph (') in wifi passwork.
+   
