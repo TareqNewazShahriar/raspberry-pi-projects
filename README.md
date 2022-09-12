@@ -212,9 +212,9 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    cat /sys/class/thermal/thermal_zone0/temp
    ```
 
-* Top 10 processes based on Cpu usage:
+* Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `head -11`
    ```sh
-   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -10
+   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -11
    ```
 
 * Memory status
@@ -259,4 +259,5 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    ```
    > IMPORTANT
    > Don't use apostroph (') in wifi passwork.
-   
+
+* System log path `/var/log/messages`. Additionally enable watch dog to do vigorous logging.
