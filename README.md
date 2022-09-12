@@ -20,7 +20,7 @@
 
 ## Install Node.js
 
-Install Node.js from the NodeSource Repository, a third party service which resolves the installation process. Less than ARM
+Install Node.js from the NodeSource Repository, a third party service which resolves the installation process.
 
    ```
    curl -sL https://deb.nodesource.com/setup_<version>.x | sudo bash -
@@ -31,7 +31,8 @@ Install Node.js from the NodeSource Repository, a third party service which reso
    ```
 
 > NOTE  
-> *Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.*
+> * Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.
+> * ARMv6 processor is not supported by NodeSource; even for Node-v10.
 
 ## Install Git
 ```
