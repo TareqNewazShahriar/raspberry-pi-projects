@@ -20,12 +20,11 @@
 
 ## Install Node.js
 
-Install Node.js from the NodeSource Repository, a third party service which resolves the installation process.
+Install Node.js from the NodeSource Repository, a third party service which resolves the installation process. Less than ARM
 
    ```
    curl -sL https://deb.nodesource.com/setup_<version>.x | sudo bash -
    ```
-   This will resolve the *ARM* architecture and other compatibilities to select the correct version of the node. So Node.js installed with one model Raspberry PI may not run on other model(s). Like RPI3 is ARMv71, so Node.js ARMv71 distribution has to be installed to run on that machine. But after that this installation will not run on RPI Zero W, which is ARMv61. ARMv61 distribution of Node.js has to be installed too.
    
    ```
    sudo apt install nodejs
@@ -113,6 +112,7 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 ## Useful Notes
 * Use `node` command to add a node.js app on device startup. Running with `npm` command will run an extra `npm` process.
 
+* Installing Node.js with NodeSource will resolve the *ARM* architecture and other compatibilities and downloads the correct version of the Node.js distribution. So Node.js installed with one model Raspberry PI may not run on other model(s). Like RPI3 is ARMv71, so Node.js ARMv71 distribution has to be installed to run on that machine. But after that this installation will not run on RPI Zero W, which is ARMv61. ARMv61 distribution of Node.js has to be installed too.
 
 ## Useful Linux terminal commands
 
