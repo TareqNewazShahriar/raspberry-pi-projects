@@ -113,7 +113,7 @@ git --version
 *(Coutesy: circuitbasics.com)*  
 We’ll need to enable the One-Wire interface before the Pi can receive data from the sensor. Once you’ve connected the DS18B20, power up your Pi and log in, then follow these steps to enable the One-Wire interface:
 
-* At the command prompt, enter sudo nano /boot/config.txt, then add this to the bottom of the file:
+* At the command prompt, enter `sudo nano /boot/config.txt`, then add this to the bottom of the file:
 ```sh
 dtoverlay=w1-gpio
 ```
