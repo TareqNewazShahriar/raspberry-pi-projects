@@ -54,11 +54,10 @@ Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
 1. You might have to do the following if you receive a *command not found* error.
   First, open the `.profile` file using nano: `sudo nano ~/.profile`
 
-1. Add the following line to the end of the file and hit Ctrl+X to save, and then hit 'y' and enter to confirm the changes.
-  ```
-  PATH=$PATH:/usr/local/bin
-  ```
+1. Add the following line to the end of the file and hit Ctrl+X to save, and then hit 'y' and enter to confirm the changes: `PATH=$PATH:/usr/local/bin`.
+
 1. Reboot and checck is it working.
+
 
 ## Install Git
 ```
