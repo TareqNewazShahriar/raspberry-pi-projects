@@ -34,6 +34,32 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 > * Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.
 > * ARMv6 processor is not supported by NodeSource; even for Node-v10.
 
+### NodeJS Install Steps for ARMv61 processor (RPi Zero W)
+
+1. Go to the unoffical builds download page of Node.js site and select the version of NodeJS you want to install. Copy the link of the ARMv6 version of NodeJS (Select the link with the .xz extension).
+
+1. Download the file `wget <link>`.  
+Example: `wget https://unofficial-builds.nodejs.org/download/release/v14.13.0/node-v14.13.0-linux-armv6l.tar.xz`
+
+1. Extract the binary from the tarball file using the following command `tar xvfJ <file_name.tar.xz>`.  
+Example `tar xvfJ node-v14.13.0-linux-armv6l.tar.xz`
+
+1. Copy the contents of the extracted tarball file to the `usr/local` directory: `sudo cp -R <extracted tar folder>/* /usr/local`.  
+Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
+
+1. Reboot and check everything is working correctly `node -v && npm -v`.
+
+**Extra steps**
+
+1. You might have to do the following if you receive a *command not found* error.
+  First, open the `.profile` file using nano: `sudo nano ~/.profile`
+
+1. Add the following line to the end of the file and hit Ctrl+X to save, and then hit 'y' and enter to confirm the changes.
+  ```
+  PATH=$PATH:/usr/local/bin
+  ```
+1. Reboot and checck is it working.
+
 ## Install Git
 ```
 sudo apt update
