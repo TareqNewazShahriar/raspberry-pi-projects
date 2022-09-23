@@ -140,19 +140,16 @@ const i2c = require('i2c-bus');
 let PCF8591_ADDR = 0x48,
     PCF_REG   = 0x00,
     PCF_DATA_LENGTH = 0x01;
-    const buf = new Buffer([0x00, 0x00,0x00,0x00,0x00,0x00]);
+let buffer = Buffer.from([0x00, 0x00,0x00,0x00,0x00,0x00]);
 
 i2c1 = i2c.openSync(1);
 
-i2c1.i2cWrite(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
-    if (err) {
-        console.log();
-    }
-
-    i2c1.i2cRead(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
-        if (err) {
-            throw err;
-        }
-        console.log(buffer);
-    });
+i2c1.i2cRead(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (data, err) {
+   console.log(buffer, data, err);
 });
+
+// i2c1.i2cWrite(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
+//     if (err) {
+//         console.log();
+//     }
+// });

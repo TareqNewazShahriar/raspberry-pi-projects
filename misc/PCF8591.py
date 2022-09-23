@@ -16,10 +16,8 @@
 #	ADC.write(Value)	# Value range from 0 to 255		
 #
 #------------------------------------------------------
-import smbus2
+import smbus2 as smbus
 import time
-
-smbus = smbus2
 
 # for RPI version 1, use "bus = smbus.SMBus(0)"
 bus = smbus.SMBus(1)
@@ -60,7 +58,7 @@ if __name__ == "__main__":
 	while True:
 		print ('AIN0 = ', read(0))
 		print ('AIN1 = ', read(1))
-		tmp = read(0)
+		tmp = read(1)
 		tmp = tmp*(255-125)/255+125 # LED won't light up below 125, so convert '0-255' to '125-255'
 		write(tmp)
 #		time.sleep(0.3)
