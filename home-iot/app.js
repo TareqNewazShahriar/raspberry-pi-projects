@@ -4,20 +4,6 @@ const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
-var Ds18x20 = require('ds18x20');
-
-Ds18x20.isDriverLoaded(function (err, isLoaded) {
-   console.log({isLoaded});
-  
-   Ds18x20.list(function (err, listOfDeviceIds) {
-      console.log(listOfDeviceIds);
-
-      Ds18x20.getAll(function (err, tempObj) {
-         console.log(tempObj);
-      });
-   });
-});
-
 
 let _port = 8081
 http.listen(_port)
@@ -142,3 +128,31 @@ function getPiHealthData() {
          });
    });
 }
+
+
+
+
+////////////////////////
+
+const i2c = require('i2c-bus');
+
+
+let PCF8591_ADDR = 0x48,
+    PCF_REG   = 0x00,
+    PCF_DATA_LENGTH = 0x01;
+    const buf = new Buffer([0x00, 0x00,0x00,0x00,0x00,0x00]);
+
+i2c1 = i2c.openSync(1);
+
+i2c1.i2cWrite(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
+    if (err) {
+        console.log();
+    }
+
+    i2c1.i2cRead(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
+        if (err) {
+            throw err;
+        }
+        console.log(buffer);
+    });
+});
