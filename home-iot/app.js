@@ -28,7 +28,8 @@ function handler(req, res) {
       }
    }
 
-   fs.readFile(__dirname + '/public/index.html', function (err, data) { //read file index.html in public folder
+   // read file index.html in public folder
+   fs.readFile(__dirname + '/public/index.html', function(err, data) {
       if (err) { // file not found
          console.log('Error occurred on getting index.html file.', err)
          res.writeHead(404, { 'Content-Type': 'text/html' }); //display 404 on error
@@ -41,7 +42,7 @@ function handler(req, res) {
    });
 }
 
-const DELAY = 1000 * 60 * 5
+const DELAY = 5 * 1000
 const ON = 1;
 const OFF = 0;
 var LED = new Gpio(17, 'out');
@@ -85,9 +86,10 @@ function blinkLed(led, i) {
 }
 
 function sendHumitureData(socket) {
+   
    readHumiture()
       .then(reading => {
-         socket.emit('humiture', { from: 'server', val: reading, to: 'connectee' });
+         socket.emit('humiture', { from: 'server', val: reading, to: 'connectee', time: new Date().toLocaleString() });
          fs.appendFile(__dirname + '/output/temperature.log',
             JSON.stringify(reading) + '\n',
             () => {/*callback is required*/});
@@ -98,17 +100,19 @@ function sendHumitureData(socket) {
 function readHumiture() {
    return new Promise((resolve, reject) => {
       try {
-         Humiture.read(11, 27, function(err, temperature, humidity) {
+         Humiture.read(11, 10, function(err, temperature, humidity) {
             if (!err) {
-              // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
-              resolve({time: new Date().toLocaleString(), temperature, humidity})
+               // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
+               resolve({ temperature, humidity })
             }
             else {
+               console.log({err})
                reject(err)
             }
          });
       }
       catch (error) {
+         console.log({error})
          reject(error)
       }
    });
@@ -129,27 +133,19 @@ function getPiHealthData() {
    });
 }
 
-
-
-
-////////////////////////
-
-const i2c = require('i2c-bus');
-
-
-let PCF8591_ADDR = 0x48,
-    PCF_REG   = 0x00,
-    PCF_DATA_LENGTH = 0x01;
-let buffer = Buffer.from([0x00, 0x00,0x00,0x00,0x00,0x00]);
-
-i2c1 = i2c.openSync(1);
-
-i2c1.i2cRead(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (data, err) {
-   console.log(buffer, data, err);
-});
-
-// i2c1.i2cWrite(PCF8591_ADDR, PCF_DATA_LENGTH, buffer, function (err) {
-//     if (err) {
-//         console.log();
-//     }
-// });
+function executePython() {
+   const { spawn } = require('child_process');
+   const pyProg = spawn('python', ['./../misc/thermistor_with_a2d.py']);
+   new Promise((resove, reject) => {
+      try {
+         pyProg.stdout.on('data', function(data) {
+            console.log({data});
+            resolve(data);
+         });
+      }
+      catch(err) {
+         console.log({execPythonError: err})
+         reject(err)
+      }
+   });
+}

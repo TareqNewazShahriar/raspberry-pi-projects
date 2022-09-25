@@ -23,5 +23,5 @@ if __name__ == '__main__':
          temp = getTemperature()
          print('Temperature', temp)
          time.sleep(1)
-   except KeyboardInterrupt: 
+   except KeyboardInterrupt:
       pass
