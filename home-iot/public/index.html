@@ -87,7 +87,7 @@
             document.getElementById("last-checked").innerHTML = data.time;
          }
          else {
-            notify(`Error occurred on periodic-data hook. [Error: ${JSON.stringify(data.error)}]`);
+            notify(`Error occurred on periodic-data hook. [Error: ${JSON.stringify(data.errors)}]`);
          }
    	});
 
