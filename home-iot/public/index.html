@@ -79,14 +79,15 @@
    	});
 
       socket.on('periodic-data', function (data) { //get button status from client
-         if(data.success) {
+         if('val' in data) {
       		document.getElementById("temp").innerHTML = data.val.temperature;
             document.getElementById("humidity").innerHTML = data.val.humidity;
             document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
             document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
             document.getElementById("last-checked").innerHTML = data.time;
          }
-         else {
+         
+         if(!data.success) {
             notify(`Error occurred on periodic-data hook. [Error: ${JSON.stringify(data.errors)}]`);
          }
    	});

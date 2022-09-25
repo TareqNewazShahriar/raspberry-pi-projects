@@ -1,4 +1,4 @@
-const { exec } = require('child_process')
+const { exec, spawn } = require('child_process')
 const http = require('http').createServer(handler);
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
@@ -48,12 +48,14 @@ const OFF = 0;
 var LED = new Gpio(17, 'out');
 LED.writeSync(OFF); // Turn off at server star.
 
+const debug_ = false;
+
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established.');
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
-   
+
    emitSensorsData(socket);
    setInterval(emitSensorsData, DELAY, socket);
    blinkLed(LED, 0);
@@ -73,21 +75,10 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
-function blinkLed(led, i) {
-   setTimeout(
-      data => {
-         data.led.writeSync(Number(!data.led.readSync()));
-         if (data.i < 3)
-            blinkLed(led, data.i + 1)
-      },
-      400,
-      { led, i }
-   );
-}
-
 function emitSensorsData(socket) {
-   Promise.allSettled([readHumiture(), executePython(), getPiHealthData()])
+   Promise.allSettled([readHumiture(), getThermistorReading(), getPiHealthData()])
       .then(results => {
+         if(debug_) console.log('Promise.allSettled sattled')
          let data = {
             val: {
                ...(results[0].value || {}),
@@ -101,7 +92,6 @@ function emitSensorsData(socket) {
             success: undefined
          }
          data.success = !data.errors.length;
-         
          socket.emit('periodic-data', data);
          
          // Log in file
@@ -109,7 +99,10 @@ function emitSensorsData(socket) {
             JSON.stringify(data) + '\n',
             () => {/*callback is required*/});
       })
-      .catch(err => socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' }));
+      .catch(err => {
+         if(debug_) console.log('emitSensorsData catch')
+         socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' });
+      });
 }
 
 function readHumiture() {
@@ -121,41 +114,54 @@ function readHumiture() {
                resolve({ temperature, humidity })
             }
             else {
-               console.log({humitureError: err})
+               console.log({humitureReadError: err})
                reject(err)
             }
          });
       }
       catch (error) {
-         console.log({humitureError: error})
+         console.log({humitureCatchError: error})
          reject(error)
       }
    });
 }
 
 function getPiHealthData() {
+   //if(debug_) console.log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
       exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; dmesg | grep voltage; vcgencmd get_throttled;',
-         (error, stdout) => {
+         (error, data) => {
+            //if(debug_) console.log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
                console.error({errorOnPiHealthData: error})
                reject(error)
             }      
             else {
-               resolve({piHealthData: stdout});
+               resolve({piHealthData: data});
             }
          });
    });
 }
 
-function executePython() {
-   const { spawn } = require('child_process');
-   const pyProg = spawn('python', ['./../misc/thermistor_with_a2d.py']);
+function getThermistorReading() {
+   //if(debug_) console.log('getThermistorReading() entered')
+   const pyProg = spawn('python', ['/home/pi/projects/raspberry-pi-projects/misc/thermistor_with_a2d.py']);
    return new Promise((resolve, reject) => {
       try {
+         if(debug_) console.log({msg: 'getThermistorReading() -> in promise'})
          pyProg.stdout.on('data', function(data) {
+            if(debug_) console.log({msg: 'getThermistorReading() -> data', data})
             let result = { thermistor: parseFloat(data.toString()) };
             resolve(result);
+         });
+
+         pyProg.stdout.on('error', function(err){
+            console.log({msg: 'pyProg.stdout.on > error', err});
+            reject(err);
+         });
+         pyProg.stdout.on('end', function(data){
+            if(debug_) console.log({msg: 'pyProg.stdout.on > end', data});
+            resolve(null);
          });
       }
       catch(err) {
@@ -163,4 +169,16 @@ function executePython() {
          reject(err)
       }
    });
+}
+
+function blinkLed(led, i) {
+   setTimeout(
+      data => {
+         data.led.writeSync(Number(!data.led.readSync()));
+         if (data.i < 3)
+            blinkLed(led, data.i + 1)
+      },
+      400,
+      { led, i }
+   );
 }
