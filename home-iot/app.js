@@ -94,16 +94,23 @@ function emitSensorsData(socket) {
                ...results[1].value || {},
                ...results[2].value || {}
             },
+            errors: {},
             from: 'server',
             to: 'connectee',
-            time: new Date().toLocaleString()
+            time: new Date().toLocaleString(),
+            success: true
          }
-         console.log(data)
+
+         if(data.error) {
+            data.success = false
+            data.errors = [results[0].reason, results[1].reason, results[2].reason];
+         }
+
          socket.emit('periodic-data', data);
          
          // Log in file
          fs.appendFile(__dirname + '/output/temperature.log',
-            JSON.stringify(results) + '\n',
+            JSON.stringify(data) + '\n',
             () => {/*callback is required*/});
       })
       .catch(err => socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' }));

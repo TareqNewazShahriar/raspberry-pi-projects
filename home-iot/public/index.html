@@ -4,6 +4,9 @@
    <title>Home IoT</title>
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <style>
+      th, td {
+         border-top: 1px solid black;
+      }
       th {
          text-align: left;
          vertical-align: top;
@@ -30,14 +33,16 @@
          <tr>
             <th>Pi Health Data</th>
             <td>
-               <div style="overflow: auto;">
+               <div style="overflow: auto; width: 60vw;">
                   <pre id="pi-health-data"></pre>
                </div>
             </td>
          </tr>
+         <tr>
+            <th><i>Last checked</i></th>
+            <td><i id="last-checked"></i></td>
+         </tr>
       </table>
-
-      <p>Last checked: <span id="last-checked"></span></p>
 
       <div style="display: none; margin-top:20px;">
          <label><input type="checkbox" id="light" style="height: 20px; width: 20px;"> LED</label>
@@ -82,7 +87,7 @@
             document.getElementById("last-checked").innerHTML = data.time;
          }
          else {
-            notify(`Error occurred from Humiture event. [Error: ${JSON.stringify(data.error)}]`);
+            notify(`Error occurred on periodic-data hook. [Error: ${JSON.stringify(data.error)}]`);
          }
    	});
 
