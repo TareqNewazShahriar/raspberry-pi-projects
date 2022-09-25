@@ -71,8 +71,13 @@ git --version
 ```
 
 ## Add command to execute on boot
-* Open `/etc/rc.local` with root permission.
-* Add Node command with full path; then save and exit.
+* Open `/etc/rc.local` with root permission and commands before `exit` command.
+
+Example
+```
+   node /home/pi/projects/raspberry-pi-projects/home-iot/app.js &
+```
+Example
 
 ## Restart network or the OS when connection is lost
 * Create a shell script `/usr/local/bin/checkwifi.sh`.
