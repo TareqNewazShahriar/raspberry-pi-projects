@@ -71,7 +71,7 @@ git --version
 ```
 
 ## Add command to execute on boot
-* Open `/etc/rc.local` with root permission and commands before `exit` command.
+* Edit `/etc/rc.local` with root permission and commands before `exit` command.
 
 Example
 ```
