@@ -19,9 +19,7 @@ def getTemperature():
 if __name__ == '__main__':
    try:
       setup()
-      while True:
-         temp = getTemperature()
-         print('Temperature', temp)
-         time.sleep(1)
+      temp = getTemperature()
+      print(temp)
    except KeyboardInterrupt:
       pass

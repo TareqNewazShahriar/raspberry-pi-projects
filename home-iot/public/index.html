@@ -16,15 +16,24 @@
       <h1>Home IoT</h1>
       <table>
          <tr>
-            <th>Humiture Sensor</th>
-            <td>
-               <div>Temperature: <span id="temp"></span></div>
-               <div>Humidity: <span id="humidity"></span></div>
-            </td>
+            <th>Temperature<br>(Humiture)</th>
+            <td><span id="temp"></span></td>
          </tr>
          <tr>
-            <th>Temperature Sensor (Digital)</th>
-            <td><span id="temp_sense"></span></td>
+            <th>Humidity<br>(Humiture)</th>
+            <td><span id="humidity"></span></td>
+         </tr>
+         <tr>
+            <th>Thermistor</th>
+            <td><span id="thermistor"></span></td>
+         </tr>
+         <tr>
+            <th>Pi Health Data</th>
+            <td>
+               <div style="overflow: auto;">
+                  <pre id="pi-health-data"></pre>
+               </div>
+            </td>
          </tr>
       </table>
 
@@ -64,11 +73,13 @@
    			notify('Led state changed.');
    	});
 
-      socket.on('humiture', function (data) { //get button status from client
+      socket.on('periodic-data', function (data) { //get button status from client
          if('val' in data) {
       		document.getElementById("temp").innerHTML = data.val.temperature;
             document.getElementById("humidity").innerHTML = data.val.humidity;
-            document.getElementById("last-checked").innerHTML = data.val.time;
+            document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
+            document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
+            document.getElementById("last-checked").innerHTML = data.time;
          }
          else {
             notify(`Error occurred from Humiture event. [Error: ${JSON.stringify(data.error)}]`);
@@ -78,7 +89,7 @@
       document.querySelector('#stat')
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
       socket.on('pi-stat', function (data) {
-         notify(data.val || JSON.stringify(data.error))
+         notify(data.val.piHealthData || JSON.stringify(data.error))
       })
 
    	function notify(msg) {

@@ -54,8 +54,8 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
    
-   sendHumitureData(socket);
-   setInterval(sendHumitureData, DELAY, socket);
+   emitSensorsData(socket);
+   setInterval(emitSensorsData, DELAY, socket);
    blinkLed(LED, 0);
 
    socket.on('light', function (data) { //get light switch status from client
@@ -85,16 +85,28 @@ function blinkLed(led, i) {
    );
 }
 
-function sendHumitureData(socket) {
-   
-   readHumiture()
-      .then(reading => {
-         socket.emit('humiture', { from: 'server', val: reading, to: 'connectee', time: new Date().toLocaleString() });
+function emitSensorsData(socket) {
+   Promise.allSettled([readHumiture(), executePython(), getPiHealthData()])
+      .then(results => {
+         let data = {
+            val: {
+               ...results[0].value || {},
+               ...results[1].value || {},
+               ...results[2].value || {}
+            },
+            from: 'server',
+            to: 'connectee',
+            time: new Date().toLocaleString()
+         }
+         console.log(data)
+         socket.emit('periodic-data', data);
+         
+         // Log in file
          fs.appendFile(__dirname + '/output/temperature.log',
-            JSON.stringify(reading) + '\n',
+            JSON.stringify(results) + '\n',
             () => {/*callback is required*/});
       })
-      .catch(err => socket.emit('humiture', { from: 'server', error: err, to: 'connectee' }))
+      .catch(err => socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' }));
 }
 
 function readHumiture() {
@@ -106,13 +118,13 @@ function readHumiture() {
                resolve({ temperature, humidity })
             }
             else {
-               console.log({err})
+               console.log({humitureError: err})
                reject(err)
             }
          });
       }
       catch (error) {
-         console.log({error})
+         console.log({humitureError: error})
          reject(error)
       }
    });
@@ -122,13 +134,13 @@ function getPiHealthData() {
    return new Promise((resolve, reject) => {
       exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; dmesg | grep voltage; vcgencmd get_throttled;',
          (error, stdout) => {
-            if (error) {
-               console.error(`exec error: ${error.toString()}`)
+            if(error) {
+               console.error({errorOnPiHealthData: error})
                reject(error)
-               return
+            }      
+            else {
+               resolve({piHealthData: stdout});
             }
-         
-            resolve(stdout);
          });
    });
 }
@@ -136,11 +148,11 @@ function getPiHealthData() {
 function executePython() {
    const { spawn } = require('child_process');
    const pyProg = spawn('python', ['./../misc/thermistor_with_a2d.py']);
-   new Promise((resove, reject) => {
+   return new Promise((resolve, reject) => {
       try {
          pyProg.stdout.on('data', function(data) {
-            console.log({data});
-            resolve(data);
+            let result = { thermistor: parseFloat(data.toString()) };
+            resolve(result);
          });
       }
       catch(err) {
