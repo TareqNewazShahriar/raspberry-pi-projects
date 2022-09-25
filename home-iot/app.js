@@ -90,22 +90,18 @@ function emitSensorsData(socket) {
       .then(results => {
          let data = {
             val: {
-               ...results[0].value || {},
-               ...results[1].value || {},
-               ...results[2].value || {}
+               ...(results[0].value || {}),
+               ...(results[1].value || {}),
+               ...(results[2].value || {})
             },
-            errors: {},
+            errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
             from: 'server',
             to: 'connectee',
             time: new Date().toLocaleString(),
-            success: true
+            success: undefined
          }
-
-         if(data.error) {
-            data.success = false
-            data.errors = [results[0].reason, results[1].reason, results[2].reason];
-         }
-
+         data.success = !data.errors.length;
+         
          socket.emit('periodic-data', data);
          
          // Log in file

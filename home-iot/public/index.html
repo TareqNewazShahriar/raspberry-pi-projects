@@ -79,7 +79,7 @@
    	});
 
       socket.on('periodic-data', function (data) { //get button status from client
-         if('val' in data) {
+         if(data.success) {
       		document.getElementById("temp").innerHTML = data.val.temperature;
             document.getElementById("humidity").innerHTML = data.val.humidity;
             document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
