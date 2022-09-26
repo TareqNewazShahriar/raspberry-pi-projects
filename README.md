@@ -293,3 +293,8 @@ If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    > Don't use apostroph (') in wifi passwork.
 
 * System log path `/var/log/messages`. Additionally enable watch dog to do vigorous logging.
+
+* Download/copy over SSH:
+  ```
+  scp username@remotehost:file_name.ext /my/local/destination/path
+  ```
