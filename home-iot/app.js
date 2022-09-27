@@ -42,7 +42,7 @@ function handler(req, res) {
    });
 }
 
-const DELAY = 5 * 1000
+const DELAY = 5 * 60 * 1000
 const ON = 1;
 const OFF = 0;
 var LED = new Gpio(17, 'out');
