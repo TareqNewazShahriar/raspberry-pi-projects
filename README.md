@@ -122,7 +122,7 @@ We’ll need to enable the One-Wire interface before the Pi can receive data fro
 ```sh
 dtoverlay=w1-gpio
 ```
-If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
+If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
 * Exit *nano*, and reboot the Pi with `sudo reboot`.
 
