@@ -122,11 +122,13 @@ We’ll need to enable the One-Wire interface before the Pi can receive data fro
 ```sh
 dtoverlay=w1-gpio
 ```
-If `dtoverlay=` is already there, doesn't matter; add one more at bottom.
+If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
 * Exit *nano*, and reboot the Pi with `sudo reboot`.
 
 * Log in to the Pi again, and at the command prompt enter `sudo modprobe w1-gpio`. Then enter `sudo modprobe w1-therm`.
+  > * Modules are pieces of code which extend the functionality of the operating system kernel without the need to reboot. Once loaded, modules reside in memory. 
+  > * To remove the module use `sudo modprove -r <module_name>`
 
 * Change directories to the `/sys/bus/w1/devices` directory.
 
