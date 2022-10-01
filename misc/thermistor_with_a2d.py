@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
 import PCF8591 as ADC
-import time
 import math
 
 def setup():

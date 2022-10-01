@@ -5,6 +5,9 @@ const io = require('socket.io')(http) //require socket.io module and pass the ht
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 
+const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
+const debug_ = LogLevel.important;
+
 let _port = 8081
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
@@ -48,8 +51,6 @@ const OFF = 0;
 var LED = new Gpio(17, 'out');
 LED.writeSync(OFF); // Turn off at server star.
 
-const debug_ = false;
-
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established.');
    socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
@@ -76,22 +77,25 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 });
 
 function emitSensorsData(socket) {
-   Promise.allSettled([readHumiture(), getThermistorReading(), getPiHealthData()])
+   Promise.allSettled([readHumiture(), executePythonScript('thermistor_with_a2d.py'), executePythonScript('photoresistor_with_a2d.py'), getPiHealthData()])
       .then(results => {
-         if(debug_) console.log('Promise.allSettled sattled')
+         if(debug_ >= LogLevel.medium) console.log('Promise.allSettled sattled', results)
          let data = {
             val: {
                ...(results[0].value || {}),
-               ...(results[1].value || {}),
-               ...(results[2].value || {})
+               thermistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
+               photoresistor: results[2].value.data ? parseFloat(results[2].value.data) : 0,
+               ...(results[3].value || {})
             },
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
             from: 'server',
             to: 'connectee',
             time: new Date().toLocaleString(),
-            success: undefined
+            success: null
          }
          data.success = !data.errors.length;
+         if(debug_ >= LogLevel.important) console.log(data);
+
          socket.emit('periodic-data', data);
          
          // Log in file
@@ -100,7 +104,7 @@ function emitSensorsData(socket) {
             () => {/*callback is required*/});
       })
       .catch(err => {
-         if(debug_) console.log('emitSensorsData catch')
+         if(debug_ >= LogLevel.important) console.log('emitSensorsData catch')
          socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' });
       });
 }
@@ -126,32 +130,15 @@ function readHumiture() {
    });
 }
 
-function getPiHealthData() {
-   //if(debug_) console.log('getPiHealthData() entered')
-   return new Promise((resolve, reject) => {
-      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; dmesg | grep voltage; vcgencmd get_throttled;',
-         (error, data) => {
-            //if(debug_) console.log({msg: 'getPiHealthData() > exec > callback', error})
-            if(error) {
-               console.error({errorOnPiHealthData: error})
-               reject(error)
-            }      
-            else {
-               resolve({piHealthData: data});
-            }
-         });
-   });
-}
-
-function getThermistorReading() {
-   //if(debug_) console.log('getThermistorReading() entered')
-   const pyProg = spawn('python', ['/home/pi/projects/raspberry-pi-projects/misc/thermistor_with_a2d.py']);
+function executePythonScript(codeFileName) {
+   if(debug_ >= LogLevel.verbose) console.log('getThermistorReading() entered')
+   const pyProg = spawn('python', ['/home/pi/projects/raspberry-pi-projects/misc/' + codeFileName]);
    return new Promise((resolve, reject) => {
       try {
-         if(debug_) console.log({msg: 'getThermistorReading() -> in promise'})
+         if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> in promise'})
          pyProg.stdout.on('data', function(data) {
-            if(debug_) console.log({msg: 'getThermistorReading() -> data', data})
-            let result = { thermistor: parseFloat(data.toString()) };
+            if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> data', data})
+            let result = { data: data.toString() };
             resolve(result);
          });
 
@@ -160,14 +147,31 @@ function getThermistorReading() {
             reject(err);
          });
          pyProg.stdout.on('end', function(data){
-            if(debug_) console.log({msg: 'pyProg.stdout.on > end', data});
-            resolve(null);
+            if(debug_ >= LogLevel.verbose) console.log({msg: 'pyProg.stdout.on > end', data});
+            resolve({});
          });
       }
       catch(err) {
          console.log({execPythonError: err})
          reject(err)
       }
+   });
+}
+
+function getPiHealthData() {
+   if(debug_ >= LogLevel.verbose) console.log('getPiHealthData() entered')
+   return new Promise((resolve, reject) => {
+      exec('cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; dmesg | grep voltage; vcgencmd get_throttled;',
+         (error, data) => {
+            if(debug_ >= LogLevel.verbose) console.log({msg: 'getPiHealthData() > exec > callback', error})
+            if(error) {
+               console.error({errorOnPiHealthData: error})
+               reject(error)
+            }      
+            else {
+               resolve({piHealthData: data});
+            }
+         });
    });
 }
 
