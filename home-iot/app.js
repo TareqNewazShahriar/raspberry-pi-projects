@@ -6,7 +6,7 @@ const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatus= { goodLight: 180, lightDark: 217, dark: 235, infinity:  Number.POSITIVE_INFINITY };
+const PhotoresistorValueStatus = { goodLight: 187, mediumLight: 200, lightDark: 217, dark: 235, blackhole:  Number.POSITIVE_INFINITY };
 const debug_ = LogLevel.none;
 const DELAY = 5 * 60 * 1000
 const ON = 1;
@@ -101,7 +101,7 @@ function emitSensorsData(socket) {
             success: null
          }
          data.success = !data.errors.length;
-         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistorStatus <= x[1])[0];
+         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistor <= x[1])[0];
 
          if(debug_ >= LogLevel.medium) console.log(data);
 
