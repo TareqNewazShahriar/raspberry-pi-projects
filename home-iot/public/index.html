@@ -39,16 +39,20 @@
             <td><span id="humidity"></span></td>
          </tr>
          <tr>
+            <th>Live Connections</th>
+            <td><span id="connectionCount"></span></td>
+         </tr>
+         <tr>
+            <th><i>Last checked</i></th>
+            <td><i id="last-checked"></i></td>
+         </tr>
+         <tr>
             <th>Pi Health Data</th>
             <td>
                <div style="overflow: auto; width: 60vw;">
                   <pre id="pi-health-data"></pre>
                </div>
             </td>
-         </tr>
-         <tr>
-            <th><i>Last checked</i></th>
-            <td><i id="last-checked"></i></td>
          </tr>
          <tr>
             <th>Actions</th>
@@ -103,6 +107,7 @@
             document.getElementById("humidity").innerHTML = data.val.humidity;
             document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
             document.getElementById("last-checked").innerHTML = data.time;
+            document.getElementById("connectionCount").innerHTML = data.connectionCount;
          }
          
          if(!data.success) {

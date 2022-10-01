@@ -95,6 +95,7 @@ function emitSensorsData(socket) {
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
             from: 'server',
             to: 'connectee',
+            connectionCount: io.sockets.server.engine.clientsCount,
             time: new Date().toLocaleString(),
             success: null
          }
