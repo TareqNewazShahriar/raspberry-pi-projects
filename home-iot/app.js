@@ -87,8 +87,8 @@ function emitSensorsData(socket) {
 
          let data = {
             val: {
-               thermistor: results[0].value.data ? parseFloat(results[1].value.data) : 0,
-               photoresistor: results[1].value.data ? parseFloat(results[2].value.data) : 0,
+               thermistor: results[0].value.data ? parseFloat(results[0].value.data) : 0,
+               photoresistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
                photoresistorStatus: '',
                ...(results[2].value || {}),
                ...(results[3].value || {})
