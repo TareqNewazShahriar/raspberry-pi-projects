@@ -81,15 +81,16 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 });
 
 function emitSensorsData(socket) {
-   Promise.allSettled([readHumiture(), executePythonScript('thermistor_with_a2d.py'), executePythonScript('photoresistor_with_a2d.py'), getPiHealthData()])
+   Promise.allSettled([executePythonScript('thermistor_with_a2d.py'), executePythonScript('photoresistor_with_a2d.py'), readHumiture(), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.medium) console.log('Promise.allSettled sattled', results)
+
          let data = {
             val: {
-               ...(results[0].value || {}),
-               thermistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
-               photoresistor: results[2].value.data ? parseFloat(results[2].value.data) : 0,
+               thermistor: results[0].value.data ? parseFloat(results[1].value.data) : 0,
+               photoresistor: results[1].value.data ? parseFloat(results[2].value.data) : 0,
                photoresistorStatus: '',
+               ...(results[2].value || {}),
                ...(results[3].value || {})
             },
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
@@ -101,7 +102,8 @@ function emitSensorsData(socket) {
          }
          data.success = !data.errors.length;
          data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistorStatus <= x[1])[0];
-         if(debug_ >= LogLevel.important) console.log(data);
+
+         if(debug_ >= LogLevel.medium) console.log(data);
 
          socket.emit('periodic-data', data);
          
