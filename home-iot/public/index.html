@@ -11,6 +11,10 @@
          text-align: left;
          vertical-align: top;
       }
+      button {
+         margin: 4px;
+         padding: 8px;
+      }
    </style>
 </head>
 <body>
@@ -46,6 +50,14 @@
             <th><i>Last checked</i></th>
             <td><i id="last-checked"></i></td>
          </tr>
+         <tr>
+            <th>Actions</th>
+            <td>
+               <button type="button" id="terminate-app">Terminate Node App</button>
+               <button type="button" id="reboot">Reboot Raspberry Pi</button>
+               <button type="button" id="poweroff">Poweroff Raspberry Pi</button>
+            </td>
+         </tr>
       </table>
 
       <div style="display: none; margin-top:20px;">
@@ -67,9 +79,9 @@
    	var socket = io(); //load socket.io-client and connect to the host that serves the page
 
    	window.addEventListener("load", function () { //when page loads
-   		var lightbox = document.getElementById("light");
+   		var lightCheckbox = document.getElementById("light");
 
-   		lightbox.addEventListener("change", function () { //add event listener for when checkbox changes
+   		lightCheckbox.addEventListener("change", function () { //add event listener for when checkbox changes
       		//console.log('"change" event fired with val:', this.checked);
       		socket.emit("light", { from: 'browser', val: this.checked }); //send button status to server (as 1 or 0)
    		});
@@ -100,9 +112,44 @@
 
       document.querySelector('#stat')
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
+
       socket.on('pi-stat', function (data) {
          notify(data.val.piHealthData || JSON.stringify(data.error))
       })
+
+      document
+         .querySelector('#terminate-app')
+         .addEventListener('click', () => {
+            if(confirm('Confirm?')) {
+               socket.emit("terminate-app", { from: 'browser' })
+               turnOffApp();
+            }
+         });
+
+         document
+            .querySelector('#reboot')
+            .addEventListener('click', () => {
+               if(confirm('Confirm?')) {
+                  socket.emit("reboot", { from: 'browser' });
+                  turnOffApp();
+               }
+            });
+
+         document
+            .querySelector('#poweroff')
+            .addEventListener('click', () => {
+               if(confirm('Confirm?')) {
+                  socket.emit("poweroff", { from: 'browser' });
+                  turnOffApp();
+               }
+            });
+      
+      function turnOffApp() {
+         setTimeout(() => { 
+            document.body.innerHTML = '';
+            document.body.style.backgroundColor = 'black'; }, 
+         700);
+      }
 
    	function notify(msg) {
          let notifyElem = document.querySelector('#notify');
