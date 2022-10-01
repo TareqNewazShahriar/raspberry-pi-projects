@@ -24,7 +24,7 @@
          </tr>
          <tr>
             <th>Photoresistor</th>
-            <td><span id="photoresistor"></span></td>
+            <td><span id="photoresistor"></span> (<span id="photoresistorStatus"></span>)</td>
          </tr>
          <tr>
             <th>Temperature<br>(Humiture)</th>
@@ -84,8 +84,9 @@
 
       socket.on('periodic-data', function (data) { //get button status from client
          if('val' in data) {
-            document.getElementById("photoresistor").innerHTML = data.val.photoresistor.toFixed(2);
             document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
+            document.getElementById("photoresistor").innerHTML = data.val.photoresistor.toFixed(2);
+            document.getElementById("photoresistorStatus").innerHTML = data.val.photoresistorStatus;
       		document.getElementById("temp").innerHTML = data.val.temperature;
             document.getElementById("humidity").innerHTML = data.val.humidity;
             document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;

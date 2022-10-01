@@ -6,6 +6,7 @@ const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
+const PhotoresistorValueStatus = { TooLight: 0, GoodLight: 180, LightDark: 217, Dark: 230, TooDark: 500 };
 const debug_ = LogLevel.important;
 
 let _port = 8081
@@ -13,24 +14,13 @@ http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
-process.on('SIGINT', function () { //on ctrl+c
-   LED.writeSync(OFF);
-   LED.unexport(); // Unexport LED GPIO to free resources
-   process.exit(); //exit completely
-});
+// process.on('SIGINT', function () { //on ctrl+c
+//    LED.writeSync(OFF);
+//    LED.unexport(); // Unexport LED GPIO to free resources
+//    process.exit(); //exit completely
+// });
 
 function handler(req, res) {
-   let exit = req.url && req.url.toLowerCase().includes('exit');
-   if (exit) {
-      console.log('Exiting...')
-      try {
-         process.exit();
-      }
-      catch (err) {
-         console.log('Error on exit', err);
-      }
-   }
-
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
       if (err) { // file not found
@@ -69,10 +59,33 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          socket.broadcast.emit('light', { from: 'server', val: data.val, to: 'braodcast' }); // broadcast to all connected sites about the change
    });
 
-   socket.on('pi-stat', function (data) {
+   socket.on('pi-stat', function () {
       getPiHealthData()
          .then(statInfo => socket.emit('pi-stat', { from: 'server', val: statInfo, to: 'connectee' }))
          .catch(err => socket.emit('pi-state', { from: 'server', error: err, to: 'connectee' }));
+   });
+
+   socket.on('terminate-app', function () {
+      console.log('Exiting...')
+      try {
+         process.exit();
+      }
+      catch (err) {
+         console.log('Error on exit', err);
+      }
+   });
+   
+   socket.on('reboot', function () {
+      exec('sudo reboot', (error, data) => {
+            if(error)
+               console.error({errorOnReboot: error, data});
+         });
+   });
+   socket.on('poweroff', function () {
+      exec('sudo poweroff', (error, data) => {
+         if(error)
+            console.error({errorOnPoweroff: error, data});
+      });
    });
 });
 
@@ -85,6 +98,7 @@ function emitSensorsData(socket) {
                ...(results[0].value || {}),
                thermistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
                photoresistor: results[2].value.data ? parseFloat(results[2].value.data) : 0,
+               photoresistorStatus: '',
                ...(results[3].value || {})
             },
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
@@ -94,6 +108,7 @@ function emitSensorsData(socket) {
             success: null
          }
          data.success = !data.errors.length;
+         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistorStatus <= x[1])[0];
          if(debug_ >= LogLevel.important) console.log(data);
 
          socket.emit('periodic-data', data);
