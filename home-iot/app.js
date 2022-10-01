@@ -6,20 +6,17 @@ const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatus = { GoodLight: { low: 0, high: 180 }, LightDark: { low: 181, high:217 }, Dark: { low: 218, high: 230 }, TooDark: { low: 231, high: Number.POSITIVE_INFINITY } };
+const PhotoresistorValueStatus= { goodLight: 180, lightDark: 217, dark: 235, infinity:  Number.POSITIVE_INFINITY };
 const debug_ = LogLevel.none;
-
+const DELAY = 5 * 60 * 1000
+const ON = 1;
+const OFF = 0;
 let _port = 8080
+
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
-// process.on('SIGINT', function () { //on ctrl+c
-//    LED.writeSync(OFF);
-//    LED.unexport(); // Unexport LED GPIO to free resources
-//    process.exit(); //exit completely
-// });
-
 function handler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
@@ -35,21 +32,13 @@ function handler(req, res) {
    });
 }
 
-const DELAY = 5 * 60 * 1000
-const ON = 1;
-const OFF = 0;
-var LED = new Gpio(17, 'out');
-LED.writeSync(OFF); // Turn off at server star.
-
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    console.log('socket connection established.');
-   socket.emit('light', { from: 'server', val: LED.readSync(), to: 'connectee' });
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
    emitSensorsData(socket);
    setInterval(emitSensorsData, DELAY, socket);
-   blinkLed(LED, 0);
 
    socket.on('light', function (data) { //get light switch status from client
       val = data.val | 0; // make it a number
@@ -110,7 +99,7 @@ function emitSensorsData(socket) {
             success: null
          }
          data.success = !data.errors.length;
-         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => x[1].low >= data.val.photoresistorStatus <= x[1].high)[0];
+         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistorStatus <= x[1])[0];
          if(debug_ >= LogLevel.important) console.log(data);
 
          socket.emit('periodic-data', data);
@@ -148,8 +137,8 @@ function readHumiture() {
 }
 
 function executePythonScript(codeFileName) {
-   if(debug_ >= LogLevel.verbose) console.log('getThermistorReading() entered')
-   const pyProg = spawn('python', ['/home/pi/projects/raspberry-pi-projects/misc/' + codeFileName]);
+   if(debug_ >= LogLevel.verbose) console.log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+   const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
    return new Promise((resolve, reject) => {
       try {
          if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> in promise'})
@@ -193,6 +182,9 @@ function getPiHealthData() {
 }
 
 function blinkLed(led, i) {
+   var LED = new Gpio(17, 'out');
+   LED.writeSync(OFF); // Turn off at server star.
+
    setTimeout(
       data => {
          data.led.writeSync(Number(!data.led.readSync()));
@@ -202,4 +194,8 @@ function blinkLed(led, i) {
       400,
       { led, i }
    );
+}
+
+function log() {
+
 }

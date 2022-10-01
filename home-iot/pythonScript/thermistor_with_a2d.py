@@ -1,4 +1,4 @@
-import PCF8591 as ADC
+import lib.PCF8591 as ADC
 import math
 
 def setup():

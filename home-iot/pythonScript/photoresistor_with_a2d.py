@@ -1,5 +1,4 @@
-import PCF8591 as ADC
-import time
+import lib.PCF8591 as ADC
 
 def getPhotoresistor():
    ADC.setup(0x48)
