@@ -195,7 +195,3 @@ function blinkLed(led, i) {
       { led, i }
    );
 }
-
-function log() {
-
-}
