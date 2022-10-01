@@ -6,10 +6,10 @@ const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatus = { TooLight: 0, GoodLight: 180, LightDark: 217, Dark: 230, TooDark: 500 };
-const debug_ = LogLevel.important;
+const PhotoresistorValueStatus = { GoodLight: { low: 0, high: 180 }, LightDark: { low: 181, high:217 }, Dark: { low: 218, high: 230 }, TooDark: { low: 231, high: Number.POSITIVE_INFINITY } };
+const debug_ = LogLevel.none;
 
-let _port = 8081
+let _port = 8080
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 
@@ -66,7 +66,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 
    socket.on('terminate-app', function () {
-      console.log('Exiting...')
+      console.log('terminate-app...');
       try {
          process.exit();
       }
@@ -76,12 +76,14 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
    
    socket.on('reboot', function () {
+      console.log('rebooting...');
       exec('sudo reboot', (error, data) => {
             if(error)
                console.error({errorOnReboot: error, data});
          });
    });
    socket.on('poweroff', function () {
+      console.log('turning off...');
       exec('sudo poweroff', (error, data) => {
          if(error)
             console.error({errorOnPoweroff: error, data});
@@ -108,7 +110,7 @@ function emitSensorsData(socket) {
             success: null
          }
          data.success = !data.errors.length;
-         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistorStatus <= x[1])[0];
+         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => x[1].low >= data.val.photoresistorStatus <= x[1].high)[0];
          if(debug_ >= LogLevel.important) console.log(data);
 
          socket.emit('periodic-data', data);
