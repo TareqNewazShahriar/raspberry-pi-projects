@@ -126,7 +126,7 @@
       document
          .querySelector('#terminate-app')
          .addEventListener('click', () => {
-            if(confirm('Confirm?')) {
+            if(confirm('Terminate the web app?')) {
                socket.emit("terminate-app", { from: 'browser' })
                turnOffApp();
             }
@@ -135,7 +135,7 @@
          document
             .querySelector('#reboot')
             .addEventListener('click', () => {
-               if(confirm('Confirm?')) {
+               if(confirm('Reboot the Raspberry PI?')) {
                   socket.emit("reboot", { from: 'browser' });
                   turnOffApp();
                }
@@ -144,7 +144,7 @@
          document
             .querySelector('#poweroff')
             .addEventListener('click', () => {
-               if(confirm('Confirm?')) {
+               if(confirm('Shut down the Raspberry PI?')) {
                   socket.emit("poweroff", { from: 'browser' });
                   turnOffApp();
                }
