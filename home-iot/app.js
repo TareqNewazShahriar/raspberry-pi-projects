@@ -110,11 +110,6 @@ function emitSensorsData(socket) {
          if(debug_ >= LogLevel.medium) console.log(data);
 
          socket.emit('periodic-data', data);
-         
-         // Log in file
-         fs.appendFile(__dirname + '/output/temperature.log',
-            JSON.stringify(data) + '\n',
-            () => {/*callback is required*/});
       })
       .catch(err => {
          if(debug_ >= LogLevel.important) console.log('emitSensorsData catch')
@@ -186,4 +181,11 @@ function getPiHealthData() {
             }
          });
    });
+}
+
+function log() {
+   // Log in file
+   fs.appendFile(__dirname + '/output/temperature.log',
+      JSON.stringify(data) + '\n',
+      () => {/*callback is required*/});
 }
