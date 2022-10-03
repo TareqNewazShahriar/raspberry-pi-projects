@@ -7,11 +7,14 @@ const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatus = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
+const LightControlModes = { sensor: 1, manual: 2 }
 const debug_ = LogLevel.none;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
-let _port = 8080
+const _port = 8080
+
+let _currentLightControlMode = LightControlModes.sensor;
 
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
@@ -40,12 +43,13 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    emitSensorsData(socket);
    setInterval(emitSensorsData, DELAY, socket);
 
-   socket.on('light', function (data) { //get light switch status from client
-      val = data.val | 0; // make it a number
-      //console.log('message from "light" event. val:', data); //turn LED on or off, for now we will just show it in console.log
-      LED.writeSync(val);
+   socket.on('light-control-mode', function (data) { //get light switch status from client
+      _currentLightControlMode = data.val;
+      let electricalSwitch = new Gpio(17, 'out');
+      electricalSwitch.writeSync(_currentLightControlMode);
       if (data.from != 'server')
-         socket.broadcast.emit('light', { from: 'server', val: data.val, to: 'braodcast' }); // broadcast to all connected sites about the change
+         // broadcast to all connected sites about the change
+         socket.broadcast.emit('light-control-mode', { from: 'server', val: _currentLightControlMode, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
@@ -89,7 +93,8 @@ function emitSensorsData(socket) {
             val: {
                thermistor: results[0].value.data ? parseFloat(results[0].value.data) : 0,
                photoresistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
-               photoresistorStatus: '',
+               photoresistorStatus: null,
+               curretnLightControlMode: _currentLightControlMode,
                ...(results[2].value || {})
             },
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
@@ -181,19 +186,4 @@ function getPiHealthData() {
             }
          });
    });
-}
-
-function blinkLed(led, i) {
-   var LED = new Gpio(17, 'out');
-   LED.writeSync(OFF); // Turn off at server star.
-
-   setTimeout(
-      data => {
-         data.led.writeSync(Number(!data.led.readSync()));
-         if (data.i < 3)
-            blinkLed(led, data.i + 1)
-      },
-      400,
-      { led, i }
-   );
 }
