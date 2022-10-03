@@ -275,6 +275,26 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    ```sh
    vcgencmd get_throttled
    ```
+   
+   | Bit Position |	Meaning
+   | -------------| ------------
+   | 0 |	Under-voltage detected
+   | 1 |	Arm frequency capped
+   | 2 |	Currently throttled
+   | 3 |	Soft temperature limit active
+   | 16 |	Under-voltage has occurred
+   | 17 |	Arm frequency capping has occurred
+   | 18 |	Throttling has occurred
+   | 19 |	Soft temperature limit has occurred
+
+  For example, a throlled value shows 0x80008. Now convert this hex value to binary in two steps - hex to decimal, decimal to binary.
+  
+  ```js
+  let n = parseInt('0x80000', 16) // must use quotes. without quotes it shows different value.
+  n.toString(2) // result: 10000000000000000000
+  ```
+  
+  Here, in the value '10000000000000000000' 19th bit is turned on which means *soft temperature limit has occurred*.
 
 * Save any command output to a file `<command_and_arguments> > <file_name>`.
    Example:
