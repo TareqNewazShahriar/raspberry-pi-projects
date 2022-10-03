@@ -15,6 +15,11 @@
          margin: 4px;
          padding: 8px;
       }
+      input[type=checkbox],
+      input[type=radio] {
+         height: 20px;
+         width: 20px;
+      }
    </style>
 </head>
 <body>
@@ -23,23 +28,27 @@
       <h1>Home IoT</h1>
       <table>
          <tr>
-            <th>Thermistor</th>
+            <th>Room Light Condition</th>
+            <td>
+               <span id="photoresistorStatus"></span> &nbsp;
+               <span id="photoresistor"></span></td>
+         </tr>
+         <tr>
+            <th>Light Control Mode</th>
+            <td>
+               <label><input type="radio"> Sensor</label>
+               <label><input type="radio"> Manual</label>
+            </td>
+         </tr>
+         <tr>
+            <th>Room Temperature</th>
             <td><span id="thermistor"></span></td>
          </tr>
          <tr>
-            <th>Photoresistor</th>
-            <td><span id="photoresistor"></span> (<span id="photoresistorStatus"></span>)</td>
-         </tr>
-         <tr>
-            <th>Temperature<br>(Humiture)</th>
-            <td><span id="temp"></span></td>
-         </tr>
-         <tr>
-            <th>Humidity<br>(Humiture)</th>
-            <td><span id="humidity"></span></td>
-         </tr>
-         <tr>
-            <th>Live Connections</th>
+            <th>
+               Live Connections<br>
+               <span style="font-weight: normal;">(number of clients connected to Raspberry PI over internet)</span>
+            </th>
             <td><span id="connectionCount"></span></td>
          </tr>
          <tr>
@@ -57,22 +66,18 @@
          <tr>
             <th>Actions</th>
             <td>
-               <button id="stat">PI Health</button>
+               <button type="button" id="toggle-bulb">Toggle Light Bulb</button>
+               <button type="button" id="stat">PI Health</button>
                <button type="button" id="terminate-app">Terminate Node App</button>
                <button type="button" id="reboot">Reboot Raspberry Pi</button>
                <button type="button" id="poweroff">Poweroff Raspberry Pi</button>
             </td>
          </tr>
       </table>
-
-      <div style="display: none; margin-top:20px;">
-         <label><input type="checkbox" id="light" style="height: 20px; width: 20px;"> LED</label>
-      </div>
    </main>
-
-   <div style="background-color:black; border:inset black; bottom:0; color: whitesmoke; padding: 5px; overflow: auto;">
+   <footer style="background-color:black; border:inset black; bottom:0; color: whitesmoke; padding: 5px; overflow: auto;">
       <pre id="notify"></pre>
-   </div>
+   </footer>
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
    <script>
@@ -101,9 +106,7 @@
             document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
             document.getElementById("photoresistor").innerHTML = data.val.photoresistor.toFixed(2);
             document.getElementById("photoresistorStatus").innerHTML = data.val.photoresistorStatus;
-      		document.getElementById("temp").innerHTML = data.val.temperature;
-            document.getElementById("humidity").innerHTML = data.val.humidity;
-            document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
+      		document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
             document.getElementById("last-checked").innerHTML = data.time;
             document.getElementById("connectionCount").innerHTML = data.connectionCount;
          }
@@ -113,7 +116,16 @@
          }
    	});
 
-      document.querySelector('#stat')
+      document
+         .querySelector('#toggle-bulb')
+         .addEventListener('click', () => {
+            if(confirm('Confirm?')) {
+               socket.emit("toggle-bulb", { from: 'browser' })
+            }
+         });
+
+      document
+         .querySelector('#stat')
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
 
       socket.on('pi-stat', function (data) {
@@ -148,9 +160,7 @@
             });
       
       function turnOffApp() {
-         setTimeout(() => { 
-            document.body.innerHTML = '';
-            document.body.style.backgroundColor = 'black'; }, 
+         setTimeout(() => { document.body.innerHTML = ''; document.body.style.backgroundColor = 'black'; },
          700);
       }
 
