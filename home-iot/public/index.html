@@ -36,8 +36,8 @@
          <tr>
             <th>Light Control Mode</th>
             <td>
-               <label><input type="radio"> Sensor</label>
-               <label><input type="radio"> Manual</label>
+               <label><input type="radio" name="bulbControlMode" value="1"> Sensor</label>
+               <label><input type="radio" name="bulbControlMode" value="2"> Manual</label>
             </td>
          </tr>
          <tr>
@@ -66,7 +66,6 @@
          <tr>
             <th>Actions</th>
             <td>
-               <button type="button" id="toggle-bulb">Toggle Light Bulb</button>
                <button type="button" id="stat">PI Health</button>
                <button type="button" id="terminate-app">Terminate Node App</button>
                <button type="button" id="reboot">Reboot Raspberry Pi</button>
@@ -85,20 +84,10 @@
 
    	var socket = io(); //load socket.io-client and connect to the host that serves the page
 
-   	window.addEventListener("load", function () { //when page loads
-   		var lightCheckbox = document.getElementById("light");
+      socket.on('connect', () => notify('Real-time communication established.'));
 
-   		lightCheckbox.addEventListener("change", function () { //add event listener for when checkbox changes
-      		//console.log('"change" event fired with val:', this.checked);
-      		socket.emit("light", { from: 'browser', val: this.checked }); //send button status to server (as 1 or 0)
-   		});
-   	});
-
-   	socket.on('light', function (data) { //get button status from client
-   		document.getElementById("light").checked = data.val; //change checkbox according to push button on Raspberry Pi
-   		//console.log('message from "light". data:', data);
-   		if(data.to != 'connectee')
-   			notify('Led state changed.');
+   	socket.on('bulb-control-mode', function (data) { //get button status from client
+   		document.querySelector(`input[name=bulbControlMode][value=${data.val}]`).checked = true;
    	});
 
       socket.on('periodic-data', function (data) { //get button status from client
@@ -117,11 +106,13 @@
    	});
 
       document
-         .querySelector('#toggle-bulb')
-         .addEventListener('click', () => {
-            if(confirm('Confirm?')) {
-               socket.emit("toggle-bulb", { from: 'browser' })
-            }
+         .querySelectorAll('input[name=bulbControlMode]')
+         .forEach(radio => {
+            radio.addEventListener('change', (event) => {
+               if(confirm('Confirm?')) {
+                  socket.emit("bulb-control-mode", { from: 'browser', val: event.target.value });
+               }
+            });
          });
 
       document
@@ -160,7 +151,10 @@
             });
       
       function turnOffApp() {
-         setTimeout(() => { document.body.innerHTML = ''; document.body.style.backgroundColor = 'black'; },
+         setTimeout(() => { 
+            document.body.innerHTML = '';
+            document.body.style.backgroundColor = 'black'; 
+         },
          700);
       }
 

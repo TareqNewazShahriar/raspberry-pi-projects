@@ -7,14 +7,14 @@ const Humiture = require('node-dht-sensor');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatus = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
-const LightControlModes = { sensor: 1, manual: 2 }
+const BulbControlModes = { sensor: 1, manual: 2 }
 const debug_ = LogLevel.none;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
 const _port = 8080
 
-let _currentLightControlMode = LightControlModes.sensor;
+let _currentBulbControlMode = BulbControlModes.sensor;
 
 http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
@@ -43,13 +43,13 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    emitSensorsData(socket);
    setInterval(emitSensorsData, DELAY, socket);
 
-   socket.on('light-control-mode', function (data) { //get light switch status from client
-      _currentLightControlMode = data.val;
+   socket.on('bulb-control-mode', function (data) { //get light switch status from client
+      _currentBulbControlMode = data.val;
       let electricalSwitch = new Gpio(17, 'out');
-      electricalSwitch.writeSync(_currentLightControlMode);
+      electricalSwitch.writeSync(_currentBulbControlMode);
       if (data.from != 'server')
          // broadcast to all connected sites about the change
-         socket.broadcast.emit('light-control-mode', { from: 'server', val: _currentLightControlMode, to: 'braodcast' });
+         socket.broadcast.emit('bulb-control-mode', { from: 'server', val: _currentBulbControlMode, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
@@ -94,7 +94,7 @@ function emitSensorsData(socket) {
                thermistor: results[0].value.data ? parseFloat(results[0].value.data) : 0,
                photoresistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
                photoresistorStatus: null,
-               curretnLightControlMode: _currentLightControlMode,
+               curretnBulbControlMode: _currentBulbControlMode,
                ...(results[2].value || {})
             },
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
