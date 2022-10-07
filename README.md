@@ -34,6 +34,22 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 > * Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.
 > * ARMv6 processor is not supported by NodeSource; even for Node-v10.
 
+### Up & Running LocalTunnel
+1. Install localtunnel globally to use localtunnel command `lt` directly from anywhere
+  ```cmd
+  npm install -g localtunnel
+  ```
+  If localtunnel is not installed globally then full path to *lt* executable have to be used, which will be something like `/home/pi/.../mode_modules/.bin/lt`.
+  
+2. Forward a local port specifying a subdomain:
+  ```cmd
+  lt --subdomain <subdomain_name> --port <port_number>
+  # example
+  lt --subdomain my-unique-subdomain-name --port 8080
+  ```
+  
+
+
 ### NodeJS Install Steps for ARMv61 processor (RPi Zero W)
 
 1. Go to the unoffical builds download page of Node.js site and select the version of NodeJS you want to install. Copy the link of the ARMv6 version of NodeJS (Select the link with the .xz extension).
