@@ -55,7 +55,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    socket.on('pi-stat', function () {
       getPiHealthData()
          .then(statInfo => socket.emit('pi-stat', { from: 'server', val: statInfo, to: 'connectee' }))
-         .catch(err => socket.emit('pi-state', { from: 'server', error: err, to: 'connectee' }));
+         .catch(err => socket.emit('pi-state', { from: 'server', error: err.toJsonString(`On "pi-stat" socket event > catch`), to: 'connectee' }));
    });
 
    socket.on('terminate-app', function () {
@@ -106,14 +106,14 @@ function emitSensorsData(socket) {
          }
          data.success = !data.errors.length;
          data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistor <= x[1])[0];
-
          if(debug_ >= LogLevel.medium) console.log(data);
 
          socket.emit('periodic-data', data);
       })
       .catch(err => {
-         if(debug_ >= LogLevel.important) console.log('emitSensorsData catch')
-         socket.emit('periodic-data', { from: 'server', error: err, to: 'connectee' });
+         if(debug_ >= LogLevel.important) 
+            console.log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
+         socket.emit('periodic-data', { from: 'server', errors: [err.toJsonString('emitSensorsData > catch')], to: 'connectee' });
       });
 }
 
@@ -188,4 +188,10 @@ function log() {
    fs.appendFile(__dirname + '/output/temperature.log',
       JSON.stringify(data) + '\n',
       () => {/*callback is required*/});
+}
+
+Error.prototype.toJsonString = function(inFunc) {
+   let error = JSON.stringify(this, Object.getOwnPropertyNames(this))
+   error.inFunction = inFunc;
+   return error;
 }
