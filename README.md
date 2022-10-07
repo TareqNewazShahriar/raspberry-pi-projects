@@ -231,7 +231,7 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
   - `-9` denotes SIGKILL; to see full list of *kill* parameters, use `kill -l`
 
 
-* Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `head -11`
+* Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `-11`
    ```sh
    ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -11
    ```
