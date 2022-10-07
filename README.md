@@ -221,10 +221,16 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    ```
    `nohup` is short for "no hang-up". Ending '&' will run the command in the background.
 
+
+* Kill a process: `kill -9 <process_id>` or `kill -9 <process_name>`. `-9` denotes SIGKILL; to see full list of *kill* parameters, use `kill -l`
+
+
 * Run Tailscale vpn
    ```
    sudo tailscale up
    ```
+  - Seems like Tailscale doesn't support ARMv61 process (i.e. RPi Zero W)
+
 
 * Raspberry PI OS configurations
    ```
