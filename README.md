@@ -222,8 +222,24 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    `nohup` is short for "no hang-up". Ending '&' will run the command in the background.
 
 
-* Kill a process: `kill -9 <process_id>` or `kill -9 <process_name>`. `-9` denotes SIGKILL; to see full list of *kill* parameters, use `kill -l`
+* Kill a process:
+  ```sh
+  kill -9 <process_id>
+  # or
+  kill -9 <process_name>`
+  ```
+  - `-9` denotes SIGKILL; to see full list of *kill* parameters, use `kill -l`
 
+
+* Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `head -11`
+   ```sh
+   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -11
+   ```
+
+* Memory status
+   ```sh
+   free -h
+   ```
 
 * Run Tailscale vpn
    ```
@@ -250,16 +266,6 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 * CPU Temperature
    ```sh
    cat /sys/class/thermal/thermal_zone0/temp
-   ```
-
-* Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `head -11`
-   ```sh
-   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -11
-   ```
-
-* Memory status
-   ```sh
-   free -h
    ```
 
 * Cpu Information
