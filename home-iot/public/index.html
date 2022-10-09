@@ -93,7 +93,7 @@
       socket.on('connect', () => notify('Real-time communication established.'));
 
    	socket.on('bulb-control-mode', function (data) { //get button status from client
-   		document.querySelector(`input[name=bulbControlMode][value=${data.val}]`).checked = true;
+   		document.querySelector(`input[name="bulbControlMode"][value="${data.bulbControlMode}"]`).checked = true;
    	});
 
       socket.on('periodic-data', function (data) { //get button status from client
@@ -123,7 +123,7 @@
          .forEach(radio => {
             radio.addEventListener('change', (event) => {
                if(confirm('Confirm?')) {
-                  socket.emit("bulb-control-mode", { from: 'browser', val: event.target.value });
+                  socket.emit("bulb-control-mode", { from: 'browser', value: event.target.value });
                }
             });
          });

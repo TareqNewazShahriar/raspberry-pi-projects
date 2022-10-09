@@ -17,7 +17,7 @@ const _port = 8081
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 
-let _currentBulbControlMode = BulbControlModes.sensor;
+let _bulbControlMode = BulbControlModes.sensor;
 
 http.listen(_port)
 log(`Server is listening to port ${_port}...`)
@@ -55,17 +55,17 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    setInterval(emitSensorsData, DELAY, socket);
 
    socket.on('bulb-control-mode', function (data) { //get light switch status from client
-      _currentBulbControlMode = data.val;
+      _bulbControlMode = data.value;
       let electricalSwitch = new Gpio(17, 'out');
-      electricalSwitch.writeSync(_currentBulbControlMode);
+      electricalSwitch.writeSync(_bulbControlMode);
       if (data.from != 'server')
          // broadcast to all connected sites about the change
-         socket.broadcast.emit('bulb-control-mode', { from: 'server', val: _currentBulbControlMode, to: 'braodcast' });
+         socket.broadcast.broadcast('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
       getPiHealthData()
-         .then(statInfo => socket.emit('pi-stat', { from: 'server', val: statInfo, to: 'connectee' }))
+         .then(statInfo => socket.emit('pi-stat', { from: 'server', value: statInfo, to: 'connectee' }))
          .catch(err => socket.emit('pi-state', { from: 'server', error: err.toJsonString(`On "pi-stat" socket event > catch`), to: 'connectee' }));
    });
 
@@ -108,7 +108,7 @@ function emitSensorsData(socket) {
             photoresistor: results[1].value,
             piHealthData: results[2].value,
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
-            curretnBulbControlMode: _currentBulbControlMode,
+            bulbControlMode: _bulbControlMode,
             from: 'server',
             to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
