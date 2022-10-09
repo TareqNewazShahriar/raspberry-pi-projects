@@ -77,22 +77,23 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          process.exit();
       }
       catch (err) {
-         log('Error on exit', err);
+         if(debug_ >= LogLevel.important)
+            log('Error on exit', err);
       }
    });
    
    socket.on('reboot', function () {
       log('rebooting...');
       exec('sudo reboot', (error, data) => {
-            if(error)
-               console.error({errorOnReboot: error, data});
+            if(error && debug_ >= LogLevel.important)
+               log({errorOnReboot: error, data});
          });
    });
    socket.on('poweroff', function () {
       log('turning off...');
       exec('sudo poweroff', (error, data) => {
-         if(error)
-            console.error({errorOnPoweroff: error, data});
+         if(error && debug_ >= LogLevel.important)
+            log({errorOnPoweroff: error, data});
       });
    });
 });
@@ -140,7 +141,7 @@ function readHumiture() {
          });
       }
       catch (error) {
-         log({humitureCatchError: error})
+         if(debug_ >= LogLevel.important) log({humitureCatchError: error})
          reject(error)
       }
    });
@@ -171,7 +172,8 @@ function executePythonScript(codeFileName, parseCallback)
          });
 
          pyProg.stdout.on('error', function(err) {
-            log({msg: 'pyProg.stdout.on > error', err});
+            if(debug_ >= LogLevel.important) log({msg: 'pyProg.stdout.on > error', err});
+            
             reject({error: err.toJsonString('execute-python > on error event'), succes: false});
          });
          pyProg.stdout.on('end', function(data){
@@ -230,7 +232,7 @@ function log(...params) {
    console.log(params);
    // Log in file
    fs.appendFile(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
-      `${new Date().toISOString()}\n${JSON.stringify(params)}\n\n`,
+      `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`,
       () => {/*callback is required*/});
 }
 
