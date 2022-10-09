@@ -7,14 +7,15 @@ const Humiture = require('node-dht-sensor');
 const localtunnel = require('localtunnel');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatus = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
+const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const debug_ = LogLevel.important;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
 const _port = 8080
-var _localTunnel = null;
+var _localTunnelInstance = null;
+var _localProxyStatus = 'Uninitialized';
 
 let _currentBulbControlMode = BulbControlModes.sensor;
 
@@ -23,8 +24,9 @@ console.log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', () => {
-   _localTunnel ? _localTunnel.close() : null;
+   _localTunnelInstance ? _localTunnelInstance.close() : null;
    log('Node server exiting.');
+   process.exit();
 });
 
 function handler(req, res) {
@@ -71,7 +73,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       console.log('terminate-app...');
       try {
          log('Node server exiting!');
-         _localTunnel ? _localTunnel.close() : null;
+         _localTunnelInstance ? _localTunnelInstance.close() : null;
          process.exit();
       }
       catch (err) {
@@ -96,34 +98,30 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 });
 
 function emitSensorsData(socket) {
-   Promise.allSettled([executePythonScript('thermistor_with_a2d.py'), executePythonScript('photoresistor_with_a2d.py'), getPiHealthData()])
+   Promise.allSettled([executePythonScript('thermistor_with_a2d.py', parseFloat), executePythonScript('photoresistor_with_a2d.py', parseFloat), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.medium) console.log('Promise.allSettled sattled', results)
 
          let data = {
-            thermistor: { value: (results[0].value.data ? parseFloat(results[0].value.data) : 0), error: results[0].reason, success: !results[0].reason },
-            photoresistor: { value: (results[0].value.data ? parseFloat(results[1].value.data) : 0), error: results[1].reason, success: !results[1].reason },
-            photoresistorStatus: null,
+            thermistor: results[0].value,
+            photoresistor: results[1].value,
+            photoresistorStatus: JSON.stringify(PhotoresistorValueStatuses),
             curretnBulbControlMode: _currentBulbControlMode,
             ...(results[2].value || {}),
-            errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
             from: 'server',
             to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
-            time: new Date().toLocaleString(),
-            success: null
+            LocalProxyStatus: _localProxyStatus,
+            time: new Date().toLocaleString()
          }
-         data.success = !data.errors.length;
-         let lightConditionObj  = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistor <= x[1]);
-         data.val.photoresistorStatus = lightConditionObj ? lightConditionObj[0] : null;
          if(debug_ >= LogLevel.medium) console.log(data);
 
          socket.emit('periodic-data', data);
       })
       .catch(err => {
-         if(debug_ >= LogLevel.important) 
-            console.log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
-         socket.emit('periodic-data', { from: 'server', errors: [err.toJsonString('emitSensorsData > catch')], to: 'connectee' });
+         if(debug_ >= LogLevel.important) console.log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
+         
+         socket.emit('periodic-data', { from: 'server', error: err.toJsonString('emitSensorsData > catch'), to: 'connectee' });
       });
 }
 
@@ -148,12 +146,15 @@ function readHumiture() {
    });
 }
 
-function executePythonScript(codeFileName, parseCallback) {
+function executePythonScript(codeFileName, parseCallback)
+{
    if(debug_ >= LogLevel.verbose) console.log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+   
    const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
    return new Promise((resolve, reject) => {
       try {
          if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> in promise'})
+         
          pyProg.stdout.on('data', function(data) {
             if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> data', data})
             let result = {success: undefined}; 
@@ -169,7 +170,7 @@ function executePythonScript(codeFileName, parseCallback) {
             }
          });
 
-         pyProg.stdout.on('error', function(err){
+         pyProg.stdout.on('error', function(err) {
             console.log({msg: 'pyProg.stdout.on > error', err});
             reject({error: err.toJsonString('execute-python > on error event'), succes: false});
          });
@@ -203,18 +204,23 @@ function getPiHealthData() {
 }
 
 function startLocalhostProxy() {
+   _localProxyStatus = 'Initializing...';
    localtunnel({ subdomain: 'hamba-biology', port: _port })
       .then(tunnel => {
-         _localTunnel = tunnel;
+         _localTunnelInstance = tunnel;
+         _localProxyStatus = 'Initialized. Proxy resolved.';
 
          if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > then', tunnel.url);
 
          tunnel.on('close', () => {
+            let delay = 30;
+            _localProxyStatus = `Closed. Initializing in ${delay} seconds.`;
             log('startLocalhostProxy > tunnel on-close');
-            setTimeout(() => startLocalhostProxy, 30 * 1000); // restart the localtunnel after 30 seconds
+            setTimeout(() => startLocalhostProxy, delay * 1000); // restart the localtunnel after 30 seconds
          });
       })
       .catch(err => {
+         _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
          if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > catch', err);
       });
 }
