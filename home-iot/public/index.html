@@ -112,6 +112,7 @@
          else
             notify(data.piHealthData.error);
          
+         document.querySelector(`input[name="bulbControlMode"][value="${data.bulbControlMode}"]`).checked = true;
          document.getElementById("photoresistorStatus").innerHTML = data.photoresistorStatus;
          document.getElementById("connectionCount").innerHTML = data.connectionCount;
          document.querySelector('#local-proxy-status').innerHTML = data.localProxyStatus;

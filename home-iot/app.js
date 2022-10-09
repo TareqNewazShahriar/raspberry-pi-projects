@@ -60,7 +60,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       electricalSwitch.writeSync(_bulbControlMode);
       if (data.from != 'server')
          // broadcast to all connected sites about the change
-         socket.broadcast.broadcast('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
+         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
