@@ -13,14 +13,14 @@ const debug_ = LogLevel.important;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
-const _port = 8080
+const _port = 8081
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 
 let _currentBulbControlMode = BulbControlModes.sensor;
 
 http.listen(_port)
-console.log(`Server is listening to port ${_port}...`)
+log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', () => {
@@ -35,7 +35,7 @@ function handler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
       if (err) { // file not found
-         console.log('Error occurred on getting index.html file.', err)
+         log('Error occurred on getting index.html file.', err)
          res.writeHead(404, { 'Content-Type': 'text/html' }); //display 404 on error
          return res.end("404 Not Found");
       }
@@ -47,7 +47,7 @@ function handler(req, res) {
 }
 
 io.sockets.on('connection', function (socket) { // WebSocket Connection
-   console.log('socket connection established.');
+   log('socket connection established.');
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
@@ -70,26 +70,26 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 
    socket.on('terminate-app', function () {
-      console.log('terminate-app...');
+      log('terminate-app...');
       try {
          log('Node server exiting!');
          _localTunnelInstance ? _localTunnelInstance.close() : null;
          process.exit();
       }
       catch (err) {
-         console.log('Error on exit', err);
+         log('Error on exit', err);
       }
    });
    
    socket.on('reboot', function () {
-      console.log('rebooting...');
+      log('rebooting...');
       exec('sudo reboot', (error, data) => {
             if(error)
                console.error({errorOnReboot: error, data});
          });
    });
    socket.on('poweroff', function () {
-      console.log('turning off...');
+      log('turning off...');
       exec('sudo poweroff', (error, data) => {
          if(error)
             console.error({errorOnPoweroff: error, data});
@@ -100,26 +100,26 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 function emitSensorsData(socket) {
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', parseFloat), executePythonScript('photoresistor_with_a2d.py', parseFloat), getPiHealthData()])
       .then(results => {
-         if(debug_ >= LogLevel.medium) console.log('Promise.allSettled sattled', results)
+         if(debug_ >= LogLevel.medium) log('Promise.allSettled sattled', results)
 
          let data = {
             thermistor: results[0].value,
             photoresistor: results[1].value,
-            photoresistorStatus: JSON.stringify(PhotoresistorValueStatuses),
+            piHealthData: results[2].value,
+            photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
             curretnBulbControlMode: _currentBulbControlMode,
-            ...(results[2].value || {}),
             from: 'server',
             to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
-            LocalProxyStatus: _localProxyStatus,
+            localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
-         if(debug_ >= LogLevel.medium) console.log(data);
+         if(debug_ >= LogLevel.medium) log(data);
 
          socket.emit('periodic-data', data);
       })
       .catch(err => {
-         if(debug_ >= LogLevel.important) console.log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
+         if(debug_ >= LogLevel.important) log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
          
          socket.emit('periodic-data', { from: 'server', error: err.toJsonString('emitSensorsData > catch'), to: 'connectee' });
       });
@@ -130,17 +130,17 @@ function readHumiture() {
       try {
          Humiture.read(11, 10, function(err, temperature, humidity) {
             if (!err) {
-               // console.log(`temp: ${temperature}°C, humidity: ${humidity}%`)
+               // log(`temp: ${temperature}°C, humidity: ${humidity}%`)
                resolve({ temperature, humidity })
             }
             else {
-               console.log({humitureReadError: err})
+               log({humitureReadError: err})
                reject(err)
             }
          });
       }
       catch (error) {
-         console.log({humitureCatchError: error})
+         log({humitureCatchError: error})
          reject(error)
       }
    });
@@ -148,15 +148,15 @@ function readHumiture() {
 
 function executePythonScript(codeFileName, parseCallback)
 {
-   if(debug_ >= LogLevel.verbose) console.log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+   if(debug_ >= LogLevel.verbose) log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
    
    const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
    return new Promise((resolve, reject) => {
       try {
-         if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> in promise'})
+         if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> in promise'})
          
          pyProg.stdout.on('data', function(data) {
-            if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> data', data})
+            if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> data', data})
             let result = {success: undefined}; 
             try {
                result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
@@ -171,33 +171,33 @@ function executePythonScript(codeFileName, parseCallback)
          });
 
          pyProg.stdout.on('error', function(err) {
-            console.log({msg: 'pyProg.stdout.on > error', err});
+            log({msg: 'pyProg.stdout.on > error', err});
             reject({error: err.toJsonString('execute-python > on error event'), succes: false});
          });
          pyProg.stdout.on('end', function(data){
-            if(debug_ >= LogLevel.verbose) console.log({msg: 'pyProg.stdout.on > end', data});
+            if(debug_ >= LogLevel.verbose) log({msg: 'pyProg.stdout.on > end', data});
             resolve({error: new Error('Data cannot be retreived from Python script.').toJsonString('execute-python > on end event'), success: false});
          });
       }
       catch(err) {
-         console.log({execPythonError: err})
+         log({execPythonError: err})
          reject({error: err, success: false})
       }
    });
 }
 
 function getPiHealthData() {
-   if(debug_ >= LogLevel.verbose) console.log('getPiHealthData() entered')
+   if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
       exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pid,pcpu,pmem,time,stat,command --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
-            if(debug_ >= LogLevel.verbose) console.log({msg: 'getPiHealthData() > exec > callback', error})
+            if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
                console.error({errorOnPiHealthData: error})
-               reject(error)
+               reject({error: error, succes: false})
             }      
             else {
-               resolve({piHealthData: data});
+               resolve({value: data, success: true});
             }
          });
    });
@@ -209,9 +209,9 @@ function startLocalhostProxy() {
    localtunnel({ subdomain: 'hamba-biology', port: _port })
       .then(tunnel => {
          _localTunnelInstance = tunnel;
-         _localProxyStatus = 'Initialized. Proxy resolved.';
+         _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
 
-         if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > then', tunnel.url);
+         if(debug_ >= LogLevel.important) log('startLocalhostProxy > then', tunnel.url);
 
          tunnel.on('close', () => {
             let delay = 30;
@@ -222,7 +222,7 @@ function startLocalhostProxy() {
       })
       .catch(err => {
          _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
-         if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > catch', err);
+         if(debug_ >= LogLevel.important) log('startLocalhostProxy > catch', err);
       });
 }
 

@@ -30,8 +30,10 @@
          <tr>
             <th>Room Light Condition</th>
             <td>
-               <span id="photoresistorStatus"></span> &nbsp;
-               <span id="photoresistor"></span></td>
+               <span id="photoresistor"></span>
+               <br>
+               <span id="photoresistorStatus"></span>
+            </td>
          </tr>
          <tr>
             <th>Light Control Mode</th>
@@ -47,9 +49,13 @@
          <tr>
             <th>
                Live Connections<br>
-               <span style="font-weight: normal;">(number of clients connected to Raspberry PI over internet)</span>
+               <span style="font-weight: normal;">(number of clients connected<br>to Raspberry PI over internet)</span>
             </th>
             <td><span id="connectionCount"></span></td>
+         </tr>
+         <tr>
+            <th>Local Proxy Status</th>
+            <td><span id="local-proxy-status"></span></td>
          </tr>
          <tr>
             <th><i>Last checked</i></th>
@@ -91,18 +97,25 @@
    	});
 
       socket.on('periodic-data', function (data) { //get button status from client
-         if('val' in data) {
-            document.getElementById("thermistor").innerHTML = data.val.thermistor.toFixed(2);
-            document.getElementById("photoresistor").innerHTML = data.val.photoresistor.toFixed(2);
-            document.getElementById("photoresistorStatus").innerHTML = data.val.photoresistorStatus;
-      		document.getElementById("pi-health-data").innerHTML = data.val.piHealthData;
-            document.getElementById("last-checked").innerHTML = data.time;
-            document.getElementById("connectionCount").innerHTML = data.connectionCount;
-         }
+         if(data.thermistor.success)
+            document.getElementById("thermistor").innerHTML = data.thermistor.value.toFixed(2);
+         else
+            notify(data.thermistor.error);
+
+         if(data.photoresistor.success)
+            document.getElementById("photoresistor").innerHTML = data.photoresistor.value.toFixed(2);
+         else
+            notify(data.photoresistor.error);
+
+         if(data.piHealthData.success)
+            document.getElementById("pi-health-data").innerHTML = data.piHealthData.value;
+         else
+            notify(data.piHealthData.error);
          
-         if(!data.success) {
-            notify(`Error occurred on periodic-data hook. [Error: ${data.errors}]`);
-         }
+         document.getElementById("photoresistorStatus").innerHTML = data.photoresistorStatus;
+         document.getElementById("connectionCount").innerHTML = data.connectionCount;
+         document.querySelector('#local-proxy-status').innerHTML = data.localProxyStatus;
+         document.getElementById("last-checked").innerHTML = data.time;
    	});
 
       document
@@ -120,7 +133,7 @@
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
 
       socket.on('pi-stat', function (data) {
-         notify(data.val.piHealthData || data.error)
+         notify(data.value || data.error)
       })
 
       document
