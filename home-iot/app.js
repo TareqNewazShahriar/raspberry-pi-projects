@@ -101,13 +101,11 @@ function emitSensorsData(socket) {
          if(debug_ >= LogLevel.medium) console.log('Promise.allSettled sattled', results)
 
          let data = {
-            val: {
-               thermistor: results[0].value.data ? parseFloat(results[0].value.data) : 0,
-               photoresistor: results[1].value.data ? parseFloat(results[1].value.data) : 0,
-               photoresistorStatus: null,
-               curretnBulbControlMode: _currentBulbControlMode,
-               ...(results[2].value || {})
-            },
+            thermistor: { value: (results[0].value.data ? parseFloat(results[0].value.data) : 0), error: results[0].reason, success: !results[0].reason },
+            photoresistor: { value: (results[0].value.data ? parseFloat(results[1].value.data) : 0), error: results[1].reason, success: !results[1].reason },
+            photoresistorStatus: null,
+            curretnBulbControlMode: _currentBulbControlMode,
+            ...(results[2].value || {}),
             errors: [results[0].reason, results[1].reason, results[2].reason].filter(x => !!x),
             from: 'server',
             to: 'connectee',
@@ -150,7 +148,7 @@ function readHumiture() {
    });
 }
 
-function executePythonScript(codeFileName) {
+function executePythonScript(codeFileName, parseCallback) {
    if(debug_ >= LogLevel.verbose) console.log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
    const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
    return new Promise((resolve, reject) => {
@@ -158,22 +156,31 @@ function executePythonScript(codeFileName) {
          if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> in promise'})
          pyProg.stdout.on('data', function(data) {
             if(debug_ >= LogLevel.verbose) console.log({msg: 'executePythonScript() -> data', data})
-            let result = { data: data.toString() };
-            resolve(result);
+            let result = {success: undefined}; 
+            try {
+               result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
+               result.success = true;
+               resolve(result);
+            }
+            catch (error) {
+               result.error = error.toJsonString('execute-python > on data event');
+               result.success = false;
+               reject(result);
+            }
          });
 
          pyProg.stdout.on('error', function(err){
             console.log({msg: 'pyProg.stdout.on > error', err});
-            reject(err);
+            reject({error: err.toJsonString('execute-python > on error event'), succes: false});
          });
          pyProg.stdout.on('end', function(data){
             if(debug_ >= LogLevel.verbose) console.log({msg: 'pyProg.stdout.on > end', data});
-            resolve({});
+            resolve({error: new Error('Data cannot be retreived from Python script.').toJsonString('execute-python > on end event'), success: false});
          });
       }
       catch(err) {
          console.log({execPythonError: err})
-         reject(err)
+         reject({error: err, success: false})
       }
    });
 }
