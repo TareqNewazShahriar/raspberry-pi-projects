@@ -134,7 +134,7 @@
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
 
       socket.on('pi-stat', function (data) {
-         notify(data.value.value || data.error)
+         notify(data.piHealthData.value || data.piHealthData.error)
       })
 
       document
