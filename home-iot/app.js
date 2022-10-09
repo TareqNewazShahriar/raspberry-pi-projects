@@ -189,7 +189,7 @@ function executePythonScript(codeFileName, parseCallback)
 function getPiHealthData() {
    if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pid,pcpu,pmem,time,stat,command --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo command,pid,pcpu,pmem,time --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
             if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
@@ -227,7 +227,7 @@ function startLocalhostProxy() {
 }
 
 function log(...params) {
-   console.log(params, `${__dirname}/output/log-${new Date().toDateString()}.txt`);
+   console.log(params);
    // Log in file
    fs.appendFile(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
       `${new Date().toISOString()}\n${JSON.stringify(params)}\n\n`,
