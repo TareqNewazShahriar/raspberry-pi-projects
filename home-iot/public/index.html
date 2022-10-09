@@ -160,7 +160,7 @@
 
    	function notify(msg) {
          let notifyElem = document.querySelector('#notify');
-         notifyElem.innerHTML = `[${new Date().toString()}] ${msg}\n\n${notifyElem.innerHTML}`; }
+         notifyElem.innerHTML = `[${new Date().toISOString()}]\n${msg}\n\n${notifyElem.innerHTML}`; }
    </script>
 </body>
 </html>
