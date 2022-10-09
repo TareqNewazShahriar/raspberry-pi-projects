@@ -63,8 +63,8 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 
    socket.on('pi-stat', function () {
       getPiHealthData()
-         .then(statInfo => socket.emit('pi-stat', { from: 'server', value: statInfo, to: 'connectee' }))
-         .catch(err => socket.emit('pi-state', { from: 'server', error: err.toJsonString(`On "pi-stat" socket event > catch`), to: 'connectee' }));
+         .then(data => socket.emit('pi-stat', { from: 'server', piHealthData: data, to: 'connectee' }))
+         .catch(data => socket.emit('pi-state', { from: 'server', piHealthData: data, to: 'connectee' }));
    });
 
    socket.on('terminate-app', function () {
@@ -194,7 +194,7 @@ function getPiHealthData() {
             if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
                console.error({errorOnPiHealthData: error})
-               reject({error: error, succes: false})
+               reject({error: error.toJsonString('piHealthData'), succes: false})
             }      
             else {
                resolve({value: data, success: true});
