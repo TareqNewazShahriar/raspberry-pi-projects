@@ -4,15 +4,17 @@ const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const Humiture = require('node-dht-sensor');
+const localtunnel = require('localtunnel');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatus = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const debug_ = LogLevel.none;
+const debug_ = LogLevel.important;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
 const _port = 8080
+var _localTunnel = null;
 
 let _currentBulbControlMode = BulbControlModes.sensor;
 
@@ -20,6 +22,11 @@ http.listen(_port)
 console.log(`Server is listening to port ${_port}...`)
 
 process.on('warning', e => console.warn(e.stack));
+process.on('SIGINT', () => {
+   _localTunnel ? _localTunnel.close() : null;
+   log('Node server exiting.');
+});
+
 function handler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
@@ -32,6 +39,8 @@ function handler(req, res) {
       res.writeHead(200, { 'Content-Type': 'text/html' }); //write HTML
       res.write(data); // Write html string
       res.end();
+
+      startLocalhostProxy();
    });
 }
 
@@ -61,6 +70,8 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    socket.on('terminate-app', function () {
       console.log('terminate-app...');
       try {
+         log('Node server exiting!');
+         _localTunnel ? _localTunnel.close() : null;
          process.exit();
       }
       catch (err) {
@@ -105,7 +116,8 @@ function emitSensorsData(socket) {
             success: null
          }
          data.success = !data.errors.length;
-         data.val.photoresistorStatus = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistor <= x[1])[0];
+         let lightConditionObj  = Object.entries(PhotoresistorValueStatus).find(x => data.val.photoresistor <= x[1]);
+         data.val.photoresistorStatus = lightConditionObj ? lightConditionObj[0] : null;
          if(debug_ >= LogLevel.medium) console.log(data);
 
          socket.emit('periodic-data', data);
@@ -169,7 +181,7 @@ function executePythonScript(codeFileName) {
 function getPiHealthData() {
    if(debug_ >= LogLevel.verbose) console.log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo comm,pid,pcpu,pmem,time,stat,command --sort -pcpu | head -6; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
             if(debug_ >= LogLevel.verbose) console.log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
@@ -183,15 +195,32 @@ function getPiHealthData() {
    });
 }
 
-function log() {
+function startLocalhostProxy() {
+   localtunnel({ subdomain: 'hamba-biology', port: _port })
+      .then(tunnel => {
+         _localTunnel = tunnel;
+
+         if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > then', tunnel.url);
+
+         tunnel.on('close', () => {
+            log('startLocalhostProxy > tunnel on-close');
+            setTimeout(() => startLocalhostProxy, 30 * 1000); // restart the localtunnel after 30 seconds
+         });
+      })
+      .catch(err => {
+         if(debug_ >= LogLevel.important) console.log('startLocalhostProxy > catch', err);
+      });
+}
+
+function log(...params) {
+   console.log(params, `${__dirname}/output/log-${new Date().toDateString()}.txt`);
    // Log in file
-   fs.appendFile(__dirname + '/output/temperature.log',
-      JSON.stringify(data) + '\n',
+   fs.appendFile(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
+      `${new Date().toISOString()}\n${JSON.stringify(params)}\n\n`,
       () => {/*callback is required*/});
 }
 
 Error.prototype.toJsonString = function(inFunc) {
-   let error = JSON.stringify(this, Object.getOwnPropertyNames(this))
-   error.inFunction = inFunc;
-   return error;
+   this.inFunction = inFunc;
+   return JSON.stringify(this, Object.getOwnPropertyNames(this));
 }
