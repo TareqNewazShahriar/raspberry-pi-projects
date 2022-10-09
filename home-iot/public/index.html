@@ -28,6 +28,10 @@
       <h1>Home IoT</h1>
       <table>
          <tr>
+            <th>Room Temperature</th>
+            <td><span id="thermistor"></span></td>
+         </tr>
+         <tr>
             <th>Room Light Condition</th>
             <td>
                <span id="photoresistor"></span>
@@ -41,10 +45,6 @@
                <label><input type="radio" name="bulbControlMode" value="1"> Sensor</label>
                <label><input type="radio" name="bulbControlMode" value="2"> Manual</label>
             </td>
-         </tr>
-         <tr>
-            <th>Room Temperature</th>
-            <td><span id="thermistor"></span></td>
          </tr>
          <tr>
             <th>
@@ -98,12 +98,12 @@
 
       socket.on('periodic-data', function (data) { //get button status from client
          if(data.thermistor.success)
-            document.getElementById("thermistor").innerHTML = data.thermistor.value.toFixed(2);
+            document.getElementById("thermistor").innerHTML = data.thermistor.value.toFixed(1);
          else
             notify(data.thermistor.error);
 
          if(data.photoresistor.success)
-            document.getElementById("photoresistor").innerHTML = data.photoresistor.value.toFixed(2);
+            document.getElementById("photoresistor").innerHTML = data.photoresistor.value;
          else
             notify(data.photoresistor.error);
 
