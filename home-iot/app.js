@@ -1,5 +1,5 @@
 const { exec, spawn } = require('child_process');
-const http = require('http').createServer(handler);
+const http = require('http').createServer(responseHandler);
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
@@ -9,18 +9,18 @@ const localtunnel = require('localtunnel');
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const debug_ = LogLevel.important;
+const debug_ = LogLevel.medium;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = 0;
 const _port = 8081
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
+var _bulbControlMode = BulbControlModes.sensor;
 
-let _bulbControlMode = BulbControlModes.sensor;
-
-http.listen(_port)
-log(`Server is listening to port ${_port}...`)
+http.listen(_port);
+log(`Node server stated. Port ${_port}.`)
+startLocalhostProxy();
 
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', () => {
@@ -29,9 +29,7 @@ process.on('SIGINT', () => {
    process.exit();
 });
 
-startLocalhostProxy();
-
-function handler(req, res) {
+function responseHandler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
       if (err) { // file not found
@@ -99,14 +97,14 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 });
 
 function emitSensorsData(socket) {
-   Promise.allSettled([executePythonScript('thermistor_with_a2d.py', parseFloat), executePythonScript('photoresistor_with_a2d.py', parseFloat), getPiHealthData()])
+   Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.medium) log('Promise.allSettled sattled', results)
 
          let data = {
-            thermistor: results[0].value,
-            photoresistor: results[1].value,
-            piHealthData: results[2].value,
+            thermistor: results[0].value || results[0].reason,
+            photoresistor: results[1].value || results[1].reason,
+            piHealthData: results[2].value || results[2].reason,
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
             bulbControlMode: _bulbControlMode,
             from: 'server',
@@ -206,34 +204,49 @@ function getPiHealthData() {
 }
 
 function startLocalhostProxy() {
-   if(debug_ >= LogLevel.important) log('startLocalhostProxy called')
    _localProxyStatus = 'Initializing...';
+   
+   if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
+   
    localtunnel({ subdomain: 'hamba-biology', port: _port })
       .then(tunnel => {
          _localTunnelInstance = tunnel;
          _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
 
-         if(debug_ >= LogLevel.important) log('startLocalhostProxy > then', tunnel.url);
+         if(debug_ >= LogLevel.important) log({_localProxyStatus});
 
          tunnel.on('close', () => {
             let delay = 30;
             _localProxyStatus = `Closed. Initializing in ${delay} seconds.`;
-            log('startLocalhostProxy > tunnel on-close');
+            
+            if(debug_ >= LogLevel.important) log({_localProxyStatus});
+
             setTimeout(() => startLocalhostProxy, delay * 1000); // restart the localtunnel after 30 seconds
          });
       })
       .catch(err => {
          _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
-         if(debug_ >= LogLevel.important) log('startLocalhostProxy > catch', err);
+         if(debug_ >= LogLevel.important) log({_localProxyStatus});
       });
 }
 
 function log(...params) {
-   console.log(params);
+   console.log(`${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`);
    // Log in file
-   fs.appendFile(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
+   fs.appendFileSync(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
       `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`,
-      () => {/*callback is required*/});
+      'utf-8',
+      err => {
+         log({errorFromWriteFile: err});
+      });
+}
+
+function toNumber(text) {
+   let n = parseFloat(text);
+   if(Number.isNaN(n))
+      throw new Error('Not a number')
+   else
+      return n;
 }
 
 Error.prototype.toJsonString = function(inFunc) {
