@@ -29,6 +29,8 @@ process.on('SIGINT', () => {
    process.exit();
 });
 
+startLocalhostProxy();
+
 function handler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
@@ -41,8 +43,6 @@ function handler(req, res) {
       res.writeHead(200, { 'Content-Type': 'text/html' }); //write HTML
       res.write(data); // Write html string
       res.end();
-
-      startLocalhostProxy();
    });
 }
 
@@ -204,6 +204,7 @@ function getPiHealthData() {
 }
 
 function startLocalhostProxy() {
+   if(debug_ >= LogLevel.important) log('startLocalhostProxy called')
    _localProxyStatus = 'Initializing...';
    localtunnel({ subdomain: 'hamba-biology', port: _port })
       .then(tunnel => {
