@@ -98,14 +98,16 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
-function emitSensorsData(socket) {
-   if(io.sockets.server.engine.clientsCount === 0)
-      return;
+function emitSensorsData(socket)
+{
+   // todo
+   // if(io.sockets.server.engine.clientsCount === 0)
+   //    return;
 
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.medium) log('Promise.allSettled sattled', results)
-
+         
          let data = {
             thermistor: results[0].value || results[0].reason,
             photoresistor: results[1].value || results[1].reason,
@@ -119,7 +121,7 @@ function emitSensorsData(socket) {
             localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
-         data.bulbStatus = data.photoresistor.succes ? controlLight(data.photoresistor.value) : _bulbValue;
+         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _bulbValue;
 
          if(debug_ >= LogLevel.medium) log(data);
 
@@ -194,7 +196,7 @@ function executePythonScript(codeFileName, parseCallback)
    });
 }
 
-function controlLight(roomLightValue)
+function controlBulb(roomLightValue)
 {
    if(roomLightValue >= PhotoresistorValueStatuses.LightDark && _bulbValue === OFF)
    {
@@ -208,6 +210,8 @@ function controlLight(roomLightValue)
       pin.writeSync(OFF);
       _bulbValue  = OFF;
    }
+
+   return _bulbValue;
 }
 
 function getPiHealthData() {

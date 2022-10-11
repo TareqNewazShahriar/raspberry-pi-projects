@@ -40,7 +40,14 @@
             </td>
          </tr>
          <tr>
-            <th>Light Control Mode</th>
+            <th>Bulb Status</th>
+            <td>
+               <label><input type="radio" name="bulbStatus" value="1" disabled> ON</label>
+               <label><input type="radio" name="bulbStatus" value="0" disabled> OFF</label>
+            </td>
+         </tr>
+         <tr>
+            <th>Bulb Control Mode</th>
             <td>
                <label><input type="radio" name="bulbControlMode" value="1"> Sensor</label>
                <label><input type="radio" name="bulbControlMode" value="2"> Manual</label>
@@ -112,6 +119,8 @@
          else
             notify(data.piHealthData.error);
          
+         document.querySelector(`input[name="bulbStatus"][value="${data.bulbStatus}"]`).checked = true;
+         document.querySelectorAll(`input[name="bulbStatus"]`).forEach(x => x.disabled = data.bulbControlMode == 1);
          document.querySelector(`input[name="bulbControlMode"][value="${data.bulbControlMode}"]`).checked = true;
          document.getElementById("photoresistorStatus").innerHTML = data.photoresistorStatus;
          document.getElementById("connectionCount").innerHTML = data.connectionCount;
@@ -122,9 +131,14 @@
       document
          .querySelectorAll('input[name=bulbControlMode]')
          .forEach(radio => {
-            radio.addEventListener('change', (event) => {
+            radio.addEventListener('click', (event) => {
                if(confirm('Confirm?')) {
                   socket.emit("bulb-control-mode", { from: 'browser', value: event.target.value });
+                  document.querySelectorAll(`input[name="bulbStatus"]`).forEach(x => x.disabled = event.target.value == 1);
+               }
+               else {
+                  event.preventDefault();
+                  return false;
                }
             });
          });
