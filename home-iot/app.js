@@ -9,14 +9,16 @@ const localtunnel = require('localtunnel');
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const debug_ = LogLevel.medium;
+const debug_ = LogLevel.important;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
-const OFF = 0;
-const _port = 8081
+const OFF = Number(!ON);
+const _port = 8080
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 var _bulbControlMode = BulbControlModes.sensor;
+var _bulbValue = OFF;
+var _optocoupler_pin = 16;
 
 http.listen(_port);
 log(`Node server stated. Port ${_port}.`)
@@ -76,7 +78,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       }
       catch (err) {
          if(debug_ >= LogLevel.important)
-            log('Error on exit', err);
+            log('Error on terminating Node!', err.toJsonString());
       }
    });
    
@@ -97,6 +99,9 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 });
 
 function emitSensorsData(socket) {
+   if(io.sockets.server.engine.clientsCount === 0)
+      return;
+
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.medium) log('Promise.allSettled sattled', results)
@@ -107,12 +112,15 @@ function emitSensorsData(socket) {
             piHealthData: results[2].value || results[2].reason,
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
             bulbControlMode: _bulbControlMode,
+            bulbStatus: null,
             from: 'server',
             to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
             localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
+         data.bulbStatus = data.photoresistor.succes ? controlLight(data.photoresistor.value) : _bulbValue;
+
          if(debug_ >= LogLevel.medium) log(data);
 
          socket.emit('periodic-data', data);
@@ -186,10 +194,26 @@ function executePythonScript(codeFileName, parseCallback)
    });
 }
 
+function controlLight(roomLightValue)
+{
+   if(roomLightValue >= PhotoresistorValueStatuses.LightDark && _bulbValue === OFF)
+   {
+      const pin = new Gpio(_optocoupler_pin, 'out');
+      pin.writeSync(ON);
+      _bulbValue  = ON;
+   }
+   else if(roomLightValue < PhotoresistorValueStatuses.LightDark && _bulbValue === ON)
+   {
+      const pin = new Gpio(_optocoupler_pin, 'out');
+      pin.writeSync(OFF);
+      _bulbValue  = OFF;
+   }
+}
+
 function getPiHealthData() {
    if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top 5 processes)==="; ps -eo command,pid,pcpu,pmem,time --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo command,pcpu,pmem,time --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
             if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
@@ -205,29 +229,34 @@ function getPiHealthData() {
 
 function startLocalhostProxy() {
    _localProxyStatus = 'Initializing...';
-   
+   let wait = 30 * 1000;
+
    if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
-   
-   localtunnel({ subdomain: 'hamba-biology', port: _port })
-      .then(tunnel => {
-         _localTunnelInstance = tunnel;
-         _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
+   try {
+      localtunnel({ subdomain: 'hamba-biology', port: _port })
+         .then(tunnel => {
+            _localTunnelInstance = tunnel;
+            _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
 
-         if(debug_ >= LogLevel.important) log({_localProxyStatus});
-
-         tunnel.on('close', () => {
-            let delay = 30;
-            _localProxyStatus = `Closed. Initializing in ${delay} seconds.`;
-            
             if(debug_ >= LogLevel.important) log({_localProxyStatus});
 
-            setTimeout(() => startLocalhostProxy, delay * 1000); // restart the localtunnel after 30 seconds
+            tunnel.on('close', () => {
+               _localProxyStatus = `Closed. Initializing in ${wait} miliseconds.`;
+               
+               if(debug_ >= LogLevel.important) log({_localProxyStatus});
+
+               setTimeout(() => startLocalhostProxy, wait); // restart the localtunnel after 30 seconds
+            });
+         })
+         .catch(err => {
+            _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
+            if(debug_ >= LogLevel.important) log({_localProxyStatus});
          });
-      })
-      .catch(err => {
-         _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
-         if(debug_ >= LogLevel.important) log({_localProxyStatus});
-      });
+   }
+   catch(err) {
+      log({err, msg: `Handled exception on LocalTunnel. Reinitializing in ${wait} miliseconds.`});
+      setTimeout(() => startLocalhostProxy, wait);
+   }
 }
 
 function log(...params) {
