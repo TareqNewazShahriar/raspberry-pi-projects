@@ -1,11 +1,11 @@
 # Working with Raspberry PI OS
 
 ## Installing OS on SD Card
-* Install Raspberry PI OS Imager executable.
+* Install Raspberry PI OS Imager.
 * Plug the card reader with the memory card to the computer.
 * Run the Imager.
   > NOTE  
-  > Don't mistakenly try the Raspberry PI with memory card to install the OS.
+  > Don't mistakenly connect Raspberry PI with memory card and try to install the OS (because... I forgotten and I was mistakenly doing it).
 
   > **How to choose the correct version of OS**
   > - If you use the OS headless (i.e. without monitor), then install the *lite* version. Otherwise Recommended version is good to go.
