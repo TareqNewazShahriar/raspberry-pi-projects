@@ -16,11 +16,17 @@ const OFF = Number(!ON);
 const _port = 8080;
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
-var _bulbControlMode = BulbControlModes.sensor;
-var _bulbStatus = OFF;
 var _optocoupler_pin = 16;
 const _subdomain = 'whats-up-homie';
 var _subdomainCounter = 0;
+const valuesJsonPath = `${__dirname}/data/values.json`;
+const _values = {};
+try {
+   _values = JSON.parse(fs.readFileSync(valuesJsonPath, 'utf8'));
+} 
+catch (error) {
+   log('Error on reading values.', error);
+}
 
 http.listen(_port);
 log(`Node server stated. Port ${_port}.`)
@@ -59,24 +65,38 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 
    // Get bulb control mode from client
    socket.on('bulb-control-mode', function (data) {
-      _bulbControlMode = data.value;
-      if (data.from != 'server')
-         // broadcast to all other connected clients about the change
-         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
+      _values.bulbControlMode = data.value;
+      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+      
+      // If sensor mode activated, check the sensor value and take action
+      if(_values.bulbControlMode === BulbControlModes.sensor) {
+         executePythonScript('photoresistor_with_a2d.py', toNumber)
+            .then(data => {
+               controlBulb(data.value);
+               // send to all connected clients
+               socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbStatus, to: 'all' });
+            })
+            .catch(data => {});
+      }
    });
 
    // Turn on/off the bulb from client
-   socket.on('bulb-status', function (data) {
-      log(data, _bulbControlMode)
-      if(_bulbControlMode !== BulbControlModes.manual)
+   socket.on('bulb-status--from-client', function (data) {
+      if(_values.bulbControlMode !== BulbControlModes.manual)
          return;
+      
+      try {
+         let electricalSwitch = new Gpio(_optocoupler_pin, 'out');
+         electricalSwitch.writeSync(data.value);
+         _values.bulbStatus = electricalSwitch.readSync();
+         fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
+      }
+      catch(err) {
+         log('Error while switching bulb pin.', err, _values, data);
+      }
 
-      _bulbStatus = data.value;
-      let electricalSwitch = new Gpio(_optocoupler_pin, 'out');
-      electricalSwitch.writeSync(_bulbStatus);
-      if (data.from != 'server')
-         // broadcast to all connected sites about the change
-         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbStatus, to: 'braodcast' });
+      // broadcast to all connected sites about the change
+      socket.broadcast.emit('bulb-status--from-server', { from: 'server', value: _values.bulbStatus, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
@@ -122,14 +142,14 @@ function emitPeriodicData(socket)
 
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
-         if(debug_ >= LogLevel.medium) log('Promise.allSettled sattled', results)
+         if(debug_ >= LogLevel.verbose) log('Promise.allSettled sattled', results)
          
          let data = {
             thermistor: results[0].value || results[0].reason,
             photoresistor: results[1].value || results[1].reason,
             piHealthData: results[2].value || results[2].reason,
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
-            bulbControlMode: _bulbControlMode,
+            bulbControlMode: _values.bulbControlMode,
             bulbStatus: null,
             from: 'server',
             to: 'connectee',
@@ -137,7 +157,7 @@ function emitPeriodicData(socket)
             localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
-         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _bulbStatus;
+         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _values.bulbStatus;
 
          if(debug_ >= LogLevel.medium) log(data);
 
@@ -214,22 +234,29 @@ function executePythonScript(codeFileName, parseCallback)
 
 function controlBulb(roomLightValue)
 {
+   const hour = new Date().getHours();
    // Turn on
-   if(roomLightValue >= PhotoresistorValueStatuses.LightDark && _bulbStatus === OFF)
+   if(_values.bulbStatus === OFF && 
+      !hour.between(0, 6) && 
+      roomLightValue >= PhotoresistorValueStatuses.LightDark)
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
       pin.writeSync(ON);
-      _bulbStatus  = ON;
+      _values.bulbStatus  = ON;
+      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
    }
    // Turn off
-   else if(roomLightValue < PhotoresistorValueStatuses.LightDark && _bulbStatus === ON)
+   // If the bulb is on checking the sensor will not help (because the room is lit).
+   // Check the time instead
+   else if(_values.bulbStatus === ON && hour.between(0, 6))
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
       pin.writeSync(OFF);
-      _bulbStatus  = OFF;
+      _values.bulbStatus  = OFF;
+      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
    }
 
-   return _bulbStatus;
+   return _values.bulbStatus;
 }
 
 function getPiHealthData() {
@@ -297,7 +324,7 @@ function getSubdomain(counter) {
 }
 
 function log(...params) {
-   console.log(`${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`);
+   console.log(`${new Date().toLocaleString()}\n`, params);
    // Log in file
    let fd;
    try {
@@ -324,4 +351,8 @@ function toNumber(text) {
 Error.prototype.toJsonString = function(inFunc) {
    this.inFunction = inFunc;
    return JSON.stringify(this, Object.getOwnPropertyNames(this));
+}
+
+Number.prototype.between = function(a, b) {
+   return this >= a && this <= b;
 }

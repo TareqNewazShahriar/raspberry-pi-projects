@@ -99,9 +99,9 @@
 
       socket.on('connect', () => notify('Real-time communication established.'));
 
-   	socket.on('bulb-control-mode', function (data) { //get button status from client
-   		document.querySelector(`input[name="bulbControlMode"][value="${data.bulbControlMode}"]`).checked = true;
-   	});
+      socket.on('bulb-status--from-server', (data) => {
+         document.querySelector(`input[name="bulbStatus"][value="${data.value}"]`).checked = true;
+      });
 
       socket.on('periodic-data', function (data) { //get button status from client
          if(data.thermistor.success)
@@ -148,7 +148,7 @@
             .forEach(radio => {
                radio.addEventListener('click', (event) => {
                   if(confirm('Confirm?')) {
-                     socket.emit("bulb-status", { from: 'browser', value: parseInt(event.target.value) });
+                     socket.emit("bulb-status--from-client", { from: 'browser', value: parseInt(event.target.value) });
                   }
                   else {
                      event.preventDefault();
