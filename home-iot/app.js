@@ -17,10 +17,10 @@ const _port = 8080
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 var _bulbControlMode = BulbControlModes.sensor;
-var _bulbValue = OFF;
+var _bulbStatus = OFF;
 var _optocoupler_pin = 16;
-const subdomain = 'whats-up-homie';
-var subdomainCounter = 0;
+const _subdomain = 'whats-up-homie';
+var _subdomainCounter = 0;
 
 http.listen(_port);
 log(`Node server stated. Port ${_port}.`)
@@ -48,21 +48,34 @@ function responseHandler(req, res) {
    });
 }
 
+// Register all pub-sub in socket
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    log('socket connection established.');
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
-   emitSensorsData(socket);
-   setInterval(emitSensorsData, DELAY, socket);
+   emitPeriodicData(socket);
+   setInterval(emitPeriodicData, DELAY, socket);
 
-   socket.on('bulb-control-mode', function (data) { //get light switch status from client
+   // Get bulb control mode from client
+   socket.on('bulb-control-mode', function (data) {
       _bulbControlMode = data.value;
-      let electricalSwitch = new Gpio(17, 'out');
-      electricalSwitch.writeSync(_bulbControlMode);
+      if (data.from != 'server')
+         // broadcast to all other connected clients about the change
+         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
+   });
+
+   // Turn on/off the bulb from client
+   socket.on('bulb-status', function (data) {
+      if(_bulbControlMode !== BulbControlModes.manual)
+         return;
+
+      _bulbStatus = data.value;
+      let electricalSwitch = new Gpio(_optocoupler_pin, 'out');
+      electricalSwitch.writeSync(_bulbStatus);
       if (data.from != 'server')
          // broadcast to all connected sites about the change
-         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbControlMode, to: 'braodcast' });
+         socket.broadcast.emit('bulb-control-mode', { from: 'server', value: _bulbStatus, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
@@ -100,7 +113,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
-function emitSensorsData(socket)
+function emitPeriodicData(socket)
 {
    // todo
    // if(io.sockets.server.engine.clientsCount === 0)
@@ -123,7 +136,7 @@ function emitSensorsData(socket)
             localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
-         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _bulbValue;
+         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _bulbStatus;
 
          if(debug_ >= LogLevel.medium) log(data);
 
@@ -200,20 +213,22 @@ function executePythonScript(codeFileName, parseCallback)
 
 function controlBulb(roomLightValue)
 {
-   if(roomLightValue >= PhotoresistorValueStatuses.LightDark && _bulbValue === OFF)
+   // Turn on
+   if(roomLightValue >= PhotoresistorValueStatuses.LightDark && _bulbStatus === OFF)
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
       pin.writeSync(ON);
-      _bulbValue  = ON;
+      _bulbStatus  = ON;
    }
-   else if(roomLightValue < PhotoresistorValueStatuses.LightDark && _bulbValue === ON)
+   // Turn off
+   else if(roomLightValue < PhotoresistorValueStatuses.LightDark && _bulbStatus === ON)
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
       pin.writeSync(OFF);
-      _bulbValue  = OFF;
+      _bulbStatus  = OFF;
    }
 
-   return _bulbValue;
+   return _bulbStatus;
 }
 
 function getPiHealthData() {
@@ -239,20 +254,20 @@ function startLocalhostProxy() {
 
    if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
    try {
-      localtunnel({ subdomain: getSubdomain(subdomainCounter), port: _port })
+      localtunnel({ subdomain: getSubdomain(_subdomainCounter), port: _port })
          .then(tunnel => {
             _localTunnelInstance = tunnel;
             _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
 
             if(debug_ >= LogLevel.important) log({_localProxyStatus});
 
-            if(tunnel.url.startsWith(`https://${getSubdomain(subdomainCounter)}.`) === false) {
+            if(tunnel.url.startsWith(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
                // If already 5 subdomains requested but didn't 
                // get the requester one, then stop trying.
-               if(subdomainCounter === 5)
+               if(_subdomainCounter === 5)
                   return;
 
-               subdomainCounter++;
+               _subdomainCounter++;
                tunnel.close(); // close the tunnel to request next url.
                return;
             }
@@ -277,18 +292,24 @@ function startLocalhostProxy() {
 }
 
 function getSubdomain(counter) {
-   return `${subdomain}${counter ? counter : null}`;
+   return `${_subdomain}${counter ? counter : ''}`;
 }
 
 function log(...params) {
    console.log(`${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`);
    // Log in file
-   fs.appendFileSync(`${__dirname}/output/log-${new Date().toDateString()}.txt`,
-      `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`,
-      'utf-8',
-      err => {
-         log({errorFromWriteFile: err});
-      });
+   let fd;
+   try {
+      fd = fs.openSync(`${__dirname}/output/log-${new Date().toISOString().substring(0,10)}.txt`, 'a');
+      fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
+    } 
+    catch (err) {
+      console.log('Error on writing to log file.', err);
+    }
+    finally {
+      if (fd !== undefined)
+        fs.closeSync(fd);
+    }
 }
 
 function toNumber(text) {
