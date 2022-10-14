@@ -133,7 +133,7 @@
          .forEach(radio => {
             radio.addEventListener('click', (event) => {
                if(confirm('Confirm?')) {
-                  socket.emit("bulb-control-mode", { from: 'browser', value: event.target.value });
+                  socket.emit("bulb-control-mode", { from: 'browser', value: parseInt(event.target.value) });
                   document.querySelectorAll(`input[name="bulbStatus"]`).forEach(x => x.disabled = event.target.value == 1);
                }
                else {
@@ -148,7 +148,7 @@
             .forEach(radio => {
                radio.addEventListener('click', (event) => {
                   if(confirm('Confirm?')) {
-                     socket.emit("bulb-status", { from: 'browser', value: event.target.value });
+                     socket.emit("bulb-status", { from: 'browser', value: parseInt(event.target.value) });
                   }
                   else {
                      event.preventDefault();

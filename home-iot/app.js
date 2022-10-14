@@ -13,7 +13,7 @@ const debug_ = LogLevel.important;
 const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
-const _port = 8080
+const _port = 8080;
 var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 var _bulbControlMode = BulbControlModes.sensor;
@@ -67,6 +67,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
 
    // Turn on/off the bulb from client
    socket.on('bulb-status', function (data) {
+      log(data, _bulbControlMode)
       if(_bulbControlMode !== BulbControlModes.manual)
          return;
 
