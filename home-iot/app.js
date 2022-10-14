@@ -20,7 +20,7 @@ var _optocoupler_pin = 16;
 const _subdomain = 'whats-up-homie';
 var _subdomainCounter = 0;
 const valuesJsonPath = `${__dirname}/data/values.json`;
-const _values = {};
+var _values = {};
 try {
    _values = JSON.parse(fs.readFileSync(valuesJsonPath, 'utf8'));
 } 
@@ -237,7 +237,7 @@ function controlBulb(roomLightValue)
    const hour = new Date().getHours();
    // Turn on
    if(_values.bulbStatus === OFF && 
-      !hour.between(0, 6) && 
+      !hour.between(1, 6) && 
       roomLightValue >= PhotoresistorValueStatuses.LightDark)
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
@@ -248,7 +248,7 @@ function controlBulb(roomLightValue)
    // Turn off
    // If the bulb is on checking the sensor will not help (because the room is lit).
    // Check the time instead
-   else if(_values.bulbStatus === ON && hour.between(0, 6))
+   else if(_values.bulbStatus === ON && hour.between(1, 6))
    {
       const pin = new Gpio(_optocoupler_pin, 'out');
       pin.writeSync(OFF);
@@ -290,13 +290,16 @@ function startLocalhostProxy() {
             if(debug_ >= LogLevel.important) log({_localProxyStatus});
 
             if(tunnel.url.startsWith(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
+               if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: tunnel.url });
+            
                // If already 5 subdomains requested but didn't 
                // get the requester one, then stop trying.
                if(_subdomainCounter === 5)
                   return;
 
                _subdomainCounter++;
-               tunnel.close(); // close the tunnel to request next url.
+               startLocalhostProxy();
+               //tunnel.close(); // close the tunnel to request next url.
                return;
             }
 
