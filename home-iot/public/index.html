@@ -40,17 +40,17 @@
             </td>
          </tr>
          <tr>
-            <th>Bulb Status</th>
-            <td>
-               <label><input type="radio" name="bulbStatus" value="1" disabled> ON</label>
-               <label><input type="radio" name="bulbStatus" value="0" disabled> OFF</label>
-            </td>
-         </tr>
-         <tr>
             <th>Bulb Control Mode</th>
             <td>
                <label><input type="radio" name="bulbControlMode" value="1"> Sensor</label>
                <label><input type="radio" name="bulbControlMode" value="2"> Manual</label>
+            </td>
+         </tr>
+         <tr>
+            <th>Bulb Status</th>
+            <td>
+               <label><input type="radio" name="bulbStatus" value="1" disabled> ON</label>
+               <label><input type="radio" name="bulbStatus" value="0" disabled> OFF</label>
             </td>
          </tr>
          <tr>
@@ -143,6 +143,20 @@
             });
          });
 
+         document
+            .querySelectorAll('input[name=bulbStatus]')
+            .forEach(radio => {
+               radio.addEventListener('click', (event) => {
+                  if(confirm('Confirm?')) {
+                     socket.emit("bulb-status", { from: 'browser', value: event.target.value });
+                  }
+                  else {
+                     event.preventDefault();
+                     return false;
+                  }
+               });
+            });
+
       document
          .querySelector('#stat')
          .addEventListener('click', () => socket.emit("pi-stat", { from: 'browser' }))
@@ -180,6 +194,7 @@
       
       function turnOffApp() {
          setTimeout(() => { 
+            socket.disconnect();
             document.body.innerHTML = '';
             document.body.style.backgroundColor = 'black'; 
          },

@@ -19,6 +19,8 @@ var _localProxyStatus = 'Uninitialized';
 var _bulbControlMode = BulbControlModes.sensor;
 var _bulbValue = OFF;
 var _optocoupler_pin = 16;
+const subdomain = 'whats-up-homie';
+var subdomainCounter = 0;
 
 http.listen(_port);
 log(`Node server stated. Port ${_port}.`)
@@ -237,12 +239,23 @@ function startLocalhostProxy() {
 
    if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
    try {
-      localtunnel({ subdomain: 'hamba-biology', port: _port })
+      localtunnel({ subdomain: getSubdomain(subdomainCounter), port: _port })
          .then(tunnel => {
             _localTunnelInstance = tunnel;
             _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
 
             if(debug_ >= LogLevel.important) log({_localProxyStatus});
+
+            if(tunnel.url.startsWith(`https://${getSubdomain(subdomainCounter)}.`) === false) {
+               // If already 5 subdomains requested but didn't 
+               // get the requester one, then stop trying.
+               if(subdomainCounter === 5)
+                  return;
+
+               subdomainCounter++;
+               tunnel.close(); // close the tunnel to request next url.
+               return;
+            }
 
             tunnel.on('close', () => {
                _localProxyStatus = `Closed. Initializing in ${wait} miliseconds.`;
@@ -261,6 +274,10 @@ function startLocalhostProxy() {
       log({err, msg: `Handled exception on LocalTunnel. Reinitializing in ${wait} miliseconds.`});
       setTimeout(() => startLocalhostProxy, wait);
    }
+}
+
+function getSubdomain(counter) {
+   return `${subdomain}${counter ? counter : null}`;
 }
 
 function log(...params) {
