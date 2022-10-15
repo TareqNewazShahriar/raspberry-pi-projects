@@ -10,7 +10,7 @@ const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const debug_ = LogLevel.important;
-const DELAY = 5 * 60 * 1000;
+const DELAY = 2 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _port = 8080;
@@ -235,26 +235,29 @@ function executePythonScript(codeFileName, parseCallback)
 function controlBulb(roomLightValue)
 {
    const hour = new Date().getHours();
-   // Turn on
+   // Set ON
    if(_values.bulbStatus === OFF && 
       !hour.between(1, 6) && 
       roomLightValue >= PhotoresistorValueStatuses.LightDark)
    {
-      const pin = new Gpio(_optocoupler_pin, 'out');
-      pin.writeSync(ON);
       _values.bulbStatus  = ON;
       fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
    }
-   // Turn off
+   // Set OFF
    // If the bulb is on checking the sensor will not help (because the room is lit).
    // Check the time instead
    else if(_values.bulbStatus === ON && hour.between(1, 6))
    {
-      const pin = new Gpio(_optocoupler_pin, 'out');
-      pin.writeSync(OFF);
       _values.bulbStatus  = OFF;
       fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
    }
+
+
+   // Set the state to PIN 
+   const pin = new Gpio(_optocoupler_pin, 'out');
+   let val = pin.readSync();
+   if(val !== _values.bulbStatus)
+      pin.writeSync(_values.bulbStatus);
 
    return _values.bulbStatus;
 }
