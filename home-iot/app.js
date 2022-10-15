@@ -292,14 +292,17 @@ function startLocalhostProxy() {
             if(tunnel.url.startsWith(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
                if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: tunnel.url });
             
-               // If already 5 subdomains requested but didn't 
-               // get the requester one, then stop trying.
-               if(_subdomainCounter === 5)
+               // Multiple subdomains requested but didn't 
+               // get the requested one. Try after some time.
+               if(_subdomainCounter === 2) {
+                  _subdomainCounter = 0;
+                  // Try after 15 minutes
+                  setTimeout(startLocalhostProxy, 15 * 60 * 1000);
                   return;
+               }
 
                _subdomainCounter++;
-               startLocalhostProxy();
-               //tunnel.close(); // close the tunnel to request next url.
+               startLocalhostProxy(); // tunnel.close() doesn't always fire the 'close' event.
                return;
             }
 
@@ -335,7 +338,7 @@ function log(...params) {
       fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
     } 
     catch (err) {
-      console.log('Error on writing to log file.', err);
+      console.log('* Error on writing to log file.', err);
     }
     finally {
       if (fd !== undefined)
