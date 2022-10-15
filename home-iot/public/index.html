@@ -47,10 +47,10 @@
             </td>
          </tr>
          <tr>
-            <th>Bulb Status</th>
+            <th>Bulb State</th>
             <td>
-               <label><input type="radio" name="bulbStatus" value="1" disabled> ON</label>
-               <label><input type="radio" name="bulbStatus" value="0" disabled> OFF</label>
+               <label><input type="radio" name="bulbState" value="1" disabled> ON</label>
+               <label><input type="radio" name="bulbState" value="0" disabled> OFF</label>
             </td>
          </tr>
          <tr>
@@ -68,8 +68,8 @@
             <td><span id="local-proxy-status"></span></td>
          </tr>
          <tr>
-            <th><i>Last checked</i></th>
-            <td><i id="last-checked"></i></td>
+            <th>Last checked</th>
+            <td><b id="last-checked"></b></td>
          </tr>
          <tr>
             <th>Pi Health Data</th>
@@ -103,7 +103,7 @@
       socket.on('connect', () => notify('Real-time communication established.'));
 
       socket.on('bulb-status--from-server', (data) => {
-         document.querySelector(`input[name="bulbStatus"][value="${data.value}"]`).checked = true;
+         document.querySelector(`input[name="bulbState"][value="${data.value}"]`).checked = true;
       });
 
       socket.on('periodic-data', function (data) { //get button status from client
@@ -123,8 +123,8 @@
             notify(data.piHealthData.error);
       
          (document.querySelector(`input[name="bulbControlMode"][value="${data.bulbControlMode}"]`) || {}).checked = true;
-         document.querySelectorAll(`input[name="bulbStatus"]`).forEach(x => x.disabled = data.bulbControlMode == 1);
-         (document.querySelector(`input[name="bulbStatus"][value="${data.bulbStatus}"]`) || {}).checked = true;
+         document.querySelectorAll(`input[name="bulbState"]`).forEach(x => x.disabled = data.bulbControlMode == 1);
+         (document.querySelector(`input[name="bulbState"][value="${data.bulbState}"]`) || {}).checked = true;
          document.getElementById("photoresistorStatus").innerHTML = data.photoresistorStatus;
          document.getElementById("connectionCount").innerHTML = data.connectionCount;
          document.querySelector('#local-proxy-status').innerHTML = data.localProxyStatus;
@@ -137,7 +137,7 @@
             radio.addEventListener('click', (event) => {
                if(confirm('Confirm?')) {
                   socket.emit("bulb-control-mode", { from: 'browser', value: parseInt(event.target.value) });
-                  document.querySelectorAll(`input[name="bulbStatus"]`).forEach(x => x.disabled = event.target.value == 1);
+                  document.querySelectorAll(`input[name="bulbState"]`).forEach(x => x.disabled = event.target.value == 1);
                }
                else {
                   event.preventDefault();
@@ -147,7 +147,7 @@
          });
 
          document
-            .querySelectorAll('input[name=bulbStatus]')
+            .querySelectorAll('input[name=bulbState]')
             .forEach(radio => {
                radio.addEventListener('click', (event) => {
                   if(confirm('Confirm?')) {

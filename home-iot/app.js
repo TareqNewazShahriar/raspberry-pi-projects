@@ -66,17 +66,19 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    // Get bulb control mode from client
    socket.on('bulb-control-mode', function (data) {
       _values.bulbControlMode = data.value;
-      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
       
       // If sensor mode activated, check the sensor value and take action
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          executePythonScript('photoresistor_with_a2d.py', toNumber)
-            .then(data => {
-               _values.bulbStatus = controlBulb(data.value, _values.bulbControlMode, _values.bulbStatus);
+            .then(resultData => {
+               _values.bulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
                // send to all connected clients
-               socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbStatus, to: 'all' });
+               socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'all' });
             })
-            .catch(data => {});
+            .catch(errData => {})
+            .finally(() => {
+               fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+            });
       }
    });
 
@@ -86,7 +88,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          return;
       
       try {
-         _values.bulbStatus = controlBulb(data.value, _values.bulbControlMode, _values.bulbStatus);
+         _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
          fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
       }
       catch(err) {
@@ -94,7 +96,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       }
 
       // broadcast to all connected sites about the change
-      socket.broadcast.emit('bulb-status--from-server', { from: 'server', value: _values.bulbStatus, to: 'braodcast' });
+      socket.broadcast.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'braodcast' });
    });
 
    socket.on('pi-stat', function () {
@@ -148,7 +150,7 @@ function emitPeriodicData(socket)
             piHealthData: results[2].value || results[2].reason,
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
             bulbControlMode: _values.bulbControlMode,
-            bulbStatus: null,
+            bulbState: null,
             from: 'server',
             to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
@@ -156,11 +158,11 @@ function emitPeriodicData(socket)
             time: new Date().toLocaleString()
          }
          
-         data.bulbStatus = data.photoresistor.success?
-            controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbStatus) :
-            _values.bulbStatus;
-         if(data.bulbStatus !== _valeus.bulbStatus) {
-            _values.bulbStatus = data.bulbStatus;
+         data.bulbState = data.photoresistor.success?
+            controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState) :
+            _values.bulbState;
+         if(data.bulbState !== _values.bulbState) {
+            _values.bulbState = data.bulbState;
             fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
          }
 
@@ -237,24 +239,23 @@ function executePythonScript(codeFileName, parseCallback)
    });
 }
 
-function controlBulb(roomLightValue, bulbControlMode, bulbStatus)
+function controlBulb(roomLightValue, bulbControlMode, bulbState)
 {
    if(bulbControlMode === BulbControlModes.sensor) {
       const hour = new Date().getHours();
       // Set ON
-      if(bulbStatus === OFF && 
+      if(bulbState === OFF && 
          !hour.between(1, 6) && 
          roomLightValue >= PhotoresistorValueStatuses.LightDark)
       {
-         bulbStatus  = ON;
+         bulbState  = ON;
          fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
       }
       // Set OFF
-      // If the bulb is on checking the sensor will not help (because the room is lit).
-      // Check the time instead
-      else if(bulbStatus === ON && hour.between(1, 6))
+      // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
+      else if(bulbState === ON && hour.between(1, 6))
       {
-         bulbStatus  = OFF;
+         bulbState  = OFF;
          fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
       }
    }
@@ -262,10 +263,10 @@ function controlBulb(roomLightValue, bulbControlMode, bulbStatus)
    // Set the state to PIN
    const pin = new Gpio(_optocoupler_pin, 'out');
    let val = pin.readSync();
-   if(val !== bulbStatus)
-      pin.writeSync(bulbStatus);
+   if(val !== bulbState)
+      pin.writeSync(bulbState);
 
-   return bulbStatus;
+   return bulbState;
 }
 
 function getPiHealthData() {
@@ -347,7 +348,7 @@ function log(...params) {
       fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
     } 
     catch (err) {
-      console.log('* Error on writing to log file.', err);
+      console.log(`${new Date().toLocaleString()}\n`, 'Error on writing to log file.', err);
     }
     finally {
       if (fd !== undefined)
