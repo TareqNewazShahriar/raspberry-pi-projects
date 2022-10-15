@@ -10,7 +10,7 @@ const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const debug_ = LogLevel.important;
-const DELAY = 2 * 1000;
+const DELAY = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _port = 8080;
@@ -72,7 +72,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          executePythonScript('photoresistor_with_a2d.py', toNumber)
             .then(data => {
-               controlBulb(data.value);
+               _values.bulbStatus = controlBulb(data.value, _values.bulbControlMode, _values.bulbStatus);
                // send to all connected clients
                socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbStatus, to: 'all' });
             })
@@ -86,9 +86,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          return;
       
       try {
-         let electricalSwitch = new Gpio(_optocoupler_pin, 'out');
-         electricalSwitch.writeSync(data.value);
-         _values.bulbStatus = electricalSwitch.readSync();
+         _values.bulbStatus = controlBulb(data.value, _values.bulbControlMode, _values.bulbStatus);
          fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
       }
       catch(err) {
@@ -157,7 +155,14 @@ function emitPeriodicData(socket)
             localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString()
          }
-         data.bulbStatus = data.photoresistor.success ? controlBulb(data.photoresistor.value) : _values.bulbStatus;
+         
+         data.bulbStatus = data.photoresistor.success?
+            controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbStatus) :
+            _values.bulbStatus;
+         if(data.bulbStatus !== _valeus.bulbStatus) {
+            _values.bulbStatus = data.bulbStatus;
+            fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
+         }
 
          if(debug_ >= LogLevel.medium) log(data);
 
@@ -232,34 +237,35 @@ function executePythonScript(codeFileName, parseCallback)
    });
 }
 
-function controlBulb(roomLightValue)
+function controlBulb(roomLightValue, bulbControlMode, bulbStatus)
 {
-   const hour = new Date().getHours();
-   // Set ON
-   if(_values.bulbStatus === OFF && 
-      !hour.between(1, 6) && 
-      roomLightValue >= PhotoresistorValueStatuses.LightDark)
-   {
-      _values.bulbStatus  = ON;
-      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
-   }
-   // Set OFF
-   // If the bulb is on checking the sensor will not help (because the room is lit).
-   // Check the time instead
-   else if(_values.bulbStatus === ON && hour.between(1, 6))
-   {
-      _values.bulbStatus  = OFF;
-      fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+   if(bulbControlMode === BulbControlModes.sensor) {
+      const hour = new Date().getHours();
+      // Set ON
+      if(bulbStatus === OFF && 
+         !hour.between(1, 6) && 
+         roomLightValue >= PhotoresistorValueStatuses.LightDark)
+      {
+         bulbStatus  = ON;
+         fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+      }
+      // Set OFF
+      // If the bulb is on checking the sensor will not help (because the room is lit).
+      // Check the time instead
+      else if(bulbStatus === ON && hour.between(1, 6))
+      {
+         bulbStatus  = OFF;
+         fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+      }
    }
 
-
-   // Set the state to PIN 
+   // Set the state to PIN
    const pin = new Gpio(_optocoupler_pin, 'out');
    let val = pin.readSync();
-   if(val !== _values.bulbStatus)
-      pin.writeSync(_values.bulbStatus);
+   if(val !== bulbStatus)
+      pin.writeSync(bulbStatus);
 
-   return _values.bulbStatus;
+   return bulbStatus;
 }
 
 function getPiHealthData() {
