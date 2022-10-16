@@ -244,9 +244,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    if(bulbControlMode === BulbControlModes.sensor) {
       const hour = new Date().getHours();
       // Set ON
-      if(bulbState === OFF && 
-         !hour.between(1, 6) && 
-         roomLightValue >= PhotoresistorValueStatuses.LightDark)
+      if(bulbState === OFF &&
+         (hour.between(17, 23) /*evening*/ || roomLightValue >= PhotoresistorValueStatuses.LightDark))
       {
          bulbState  = ON;
          if(debug_ >= LogLevel.important)
@@ -255,7 +254,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
       else if(bulbState === ON && 
-         (hour.between(0, 6) || roomLightValue < PhotoresistorValueStatuses.LightDark))
+         (hour.between(1, 6) /*midnight*/ || roomLightValue < PhotoresistorValueStatuses.LightDark))
       {
          bulbState  = OFF;
          if(debug_ >= LogLevel.important)
