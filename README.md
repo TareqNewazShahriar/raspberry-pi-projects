@@ -93,7 +93,9 @@ Example
 ```
    node /home/pi/projects/raspberry-pi-projects/home-iot/app.js &
 ```
-Example
+
+To know about the ending `&`, check *How to run a process in the background* in this doc.
+
 
 ## Restart network or the OS when connection is lost
 * Create a shell script `/usr/local/bin/checkwifi.sh`.
