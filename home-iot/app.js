@@ -249,30 +249,35 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
          roomLightValue >= PhotoresistorValueStatuses.LightDark)
       {
          bulbState  = ON;
-         fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+         if(debug_ >= LogLevel.important)
+            log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
-      else if(bulbState === ON && hour.between(1, 6))
+      else if(bulbState === ON && 
+         (hour.between(0, 6) || roomLightValue < PhotoresistorValueStatuses.LightDark))
       {
          bulbState  = OFF;
-         fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+         if(debug_ >= LogLevel.important)
+            log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
    }
 
    // Set the state to PIN
    const pin = new Gpio(_optocoupler_pin, 'out');
+   pin.writeSync(bulbState);
+   
+   // whatever the request state is, return the actual state of the bulb.
    let val = pin.readSync();
-   if(val !== bulbState)
-      pin.writeSync(bulbState);
-
-   return bulbState;
+   if(debug_ >= LogLevel.important && val !== bulbState)
+      log({msg: 'actual bulb state', requested: bulbState, actual: val});
+   return val;
 }
 
 function getPiHealthData() {
    if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo command,pcpu,pmem,time --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
             if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
             if(error) {
@@ -348,7 +353,7 @@ function log(...params) {
       fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
     } 
     catch (err) {
-      console.log(`${new Date().toLocaleString()}\n`, 'Error on writing to log file.', err);
+      console.log(new Date().toLocaleString(), 'Error on writing to log file.', typeof err, err instanceof Object);
     }
     finally {
       if (fd !== undefined)
