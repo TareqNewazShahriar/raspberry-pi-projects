@@ -3,7 +3,7 @@
 ## Installing OS on SD Card
 * Install Raspberry PI OS Imager.
 * Plug the card reader with the memory card to the computer.
-* Run the Imager.
+* Run the Imager. https://www.raspberrypi.com/software/
   > NOTE  
   > Don't mistakenly connect Raspberry PI with memory card and try to install the OS (because... I forgotten and I was mistakenly doing it).
 
@@ -34,21 +34,6 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 > * Try avoiding the process of downloading installer, extracting etc. For new Linux users, it can be a mess.
 > * ARMv6 processor is not supported by NodeSource; even for Node-v10.
 
-### Up & Running LocalTunnel
-1. Install localtunnel globally to use localtunnel command `lt` directly from anywhere
-  ```cmd
-  npm install -g localtunnel
-  ```
-  If localtunnel is not installed globally then full path to *lt* executable have to be used, which will be something like `/home/pi/.../mode_modules/.bin/lt`.
-  
-2. Forward a local port specifying a subdomain:
-  ```cmd
-  lt --subdomain <subdomain_name> --port <port_number>
-  # example
-  lt --subdomain my-unique-subdomain-name --port 8080
-  ```
-  
-
 
 ### NodeJS Install Steps for ARMv61 processor (RPi Zero W)
 
@@ -73,6 +58,23 @@ Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
 1. Add the following line to the end of the file and hit Ctrl+X to save, and then hit 'y' and enter to confirm the changes: `PATH=$PATH:/usr/local/bin`.
 
 1. Reboot and checck is it working.
+
+
+
+### Up & Running LocalTunnel
+1. Install localtunnel globally to use localtunnel command `lt` directly from anywhere
+  ```cmd
+  npm install -g localtunnel
+  ```
+  If localtunnel is not installed globally then full path to *lt* executable have to be used, which will be something like `/home/pi/.../mode_modules/.bin/lt`.
+  
+2. Forward a local port specifying a subdomain:
+  ```cmd
+  lt --subdomain <subdomain_name> --port <port_number>
+  # example
+  lt --subdomain my-unique-subdomain-name --port 8080
+  ```
+
 
 
 ## Install Git
