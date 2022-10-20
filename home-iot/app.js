@@ -3,7 +3,6 @@ const http = require('http').createServer(responseHandler);
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const Humiture = require('node-dht-sensor');
 const localtunnel = require('localtunnel');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
@@ -177,26 +176,7 @@ function emitPeriodicData(socket)
       });
 }
 
-function readHumiture() {
-   return new Promise((resolve, reject) => {
-      try {
-         Humiture.read(11, 10, function(err, temperature, humidity) {
-            if (!err) {
-               // log(`temp: ${temperature}°C, humidity: ${humidity}%`)
-               resolve({ temperature, humidity })
-            }
-            else {
-               log({humitureReadError: err})
-               reject(err)
-            }
-         });
-      }
-      catch (error) {
-         if(debug_ >= LogLevel.important) log({humitureCatchError: error})
-         reject(error)
-      }
-   });
-}
+
 
 function executePythonScript(codeFileName, parseCallback)
 {
