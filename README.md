@@ -209,14 +209,25 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    ```
    mkdir <dir_name>
    ```
-* Remove non-empty directory:
+* Removing files and directories
+  
+  - Remove non-empty directory:
    ```
    rm -r <dir_name>
    ```
-* Remove all files of current directory, with recursive (-r) and force (-f) arguments:
+   
+  - Remove all files of current directory, with recursive (-r) and force (-f) arguments:
    ```
    rm -r -f *.*
    ```
+   
+   - To delete or skip one by one, type the following:
+   ```sh
+   rm -i mydir/*
+   ```
+   After each file name displays, type `y` and press Enter to delete the file. Or to keep the file, just press Enter.
+   
+   
 * Size of current directory  
    `-s` to display only the total size, `-h` to display sizes in a human-readable format.
    ```
