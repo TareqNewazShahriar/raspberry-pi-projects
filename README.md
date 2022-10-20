@@ -81,8 +81,7 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 1. Reboot and checck is it working.
 
 
-**NOTE**: Installing Node.js arm61 version may show *exec format error* on later ARM architecture processors like RPi-3.
-
+**NOTE**: If running `node` command shows *exec format error* then undo the previous steps and try again. **Make sure** to add `PATH` variable to `.profile` and then reboot.
 
 
 ### Up & Running LocalTunnel
