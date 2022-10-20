@@ -165,7 +165,7 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
 ## TroubleShooting
 * **Trouble**: Problem connecting to RPI with VSCode remote explorer with previous ssh config.  
-  **Shoot**: Remove the previous ssh config from the computer. On Windows, generally it is stored in `os drive/users/<username>/.ssh/config`.
+  **Shoot**: Remove the previous ssh SHA1 string from the computer. On Windows, it is in `os drive/users/<username>/.ssh/known_hosts`.
   
 * **Trouble** Where to look for system logs, crash/error/warning logs:
   **Shoot**:
