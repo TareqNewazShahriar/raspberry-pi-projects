@@ -54,14 +54,20 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 
 1. Go to the unoffical builds download page of Node.js site and select the version of NodeJS you want to install. Copy the link of the ARMv6 version of NodeJS (Select the link with the .xz extension).
 
-1. Download the file `wget <link>`.  
-Example: `wget https://unofficial-builds.nodejs.org/download/release/v14.13.0/node-v14.13.0-linux-armv6l.tar.xz`
+1. Download the file `wget <link>`. Example  
+  ```sh
+  wget https://unofficial-builds.nodejs.org/download/release/v14.13.0/node-v14.13.0-linux-armv6l.tar.xz
+  ```
 
-1. Extract the binary from the tarball file using the following command `tar xvfJ <file_name.tar.xz>`.  
-Example `tar xvfJ node-v14.13.0-linux-armv6l.tar.xz`
+1. Extract the binary from the tarball file using the following command `tar xvfJ <file_name.tar.xz>`. Example  
+  ```sh
+  tar xvfJ node-v14.13.0-linux-armv6l.tar.xz
+  ```
 
-1. Copy the contents of the extracted tarball file to the `usr/local` directory: `sudo cp -R <extracted tar folder>/* /usr/local`.  
-Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
+1. Copy the contents of the extracted tarball file to the `usr/local` directory: `sudo cp -R <extracted tar folder>/* /usr/local`. Example:  
+  ```sh
+  sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local
+  ```
 
 1. Reboot and check everything is working correctly `node -v && npm -v`.
 
