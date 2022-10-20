@@ -84,6 +84,15 @@ Install Node.js from the NodeSource Repository, a third party service which reso
 **NOTE**: If running `node` command shows *exec format error* then undo the previous steps and try again. **Make sure** to add `PATH` variable to `.profile` and then reboot.
 
 
+### Command to install Python package installer (pip3) and python packages
+   ```sh
+   sudo apt install python3-pip
+   ```
+
+   ```sh
+   pip3 install smbus2
+   ```
+
 ### Up & Running LocalTunnel
 1. Install localtunnel globally to use localtunnel command `lt` directly from anywhere
   ```cmd
