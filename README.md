@@ -18,6 +18,21 @@
  * When prompted for ssh user@hostname, enter in that format `ssh -p 22 <os_username>@<rpi_ip_address>`.
 
 
+
+
+## Install Git
+```
+sudo apt update
+sudo apt install git
+```
+
+Enter the command below to verify the installation:
+```
+git --version
+```
+
+
+
 ## Install Node.js
 
 Install Node.js from the NodeSource Repository, a third party service which resolves the installation process.
@@ -60,6 +75,9 @@ Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
 1. Reboot and checck is it working.
 
 
+**NOTE**: Installing Node.js arm61 version may show *exec format error* on later ARM architecture processors like RPi-3.
+
+
 
 ### Up & Running LocalTunnel
 1. Install localtunnel globally to use localtunnel command `lt` directly from anywhere
@@ -75,18 +93,6 @@ Example: `sudo cp -R node-v14.13.0-linux-armv6l/* /usr/local`
   lt --subdomain my-unique-subdomain-name --port 8080
   ```
 
-
-
-## Install Git
-```
-sudo apt update
-sudo apt install git
-```
-
-Enter the command below to verify the installation:
-```
-git --version
-```
 
 ## Add command to execute on boot
 * Edit `/etc/rc.local` with root permission and commands before `exit` command.
@@ -185,6 +191,9 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
    ```
    sudo apt-get upgrade --fix-missing
    ```
+   
+   - Firmware update command `sudo rpi-eeprom-update` only available in RPi-4.
+ 
  
 * List current directory
    ```
