@@ -287,17 +287,18 @@ function startLocalhostProxy() {
          if(data.includes(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
             if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: data.toString() });
          
-            // Multiple subdomains requested but didn't 
-            // get the requested one. Try after some time.
-            if(_subdomainCounter === 2) {
-               _subdomainCounter = 0;
-               // Try after 15 minutes
-               setTimeout(startLocalhostProxy, 15 * 60 * 1000);
-            }
-            else {
+            if(_subdomainCounter < 2) {
                spawnCommand.kill('SIGINT');
                _subdomainCounter++;
                startLocalhostProxy(); // tunnel.close() doesn't always fire the 'close' event.
+            }
+            else {
+               // Note: Multiple subdomains requested but didn't 
+               // get the requested one. Try after some time.
+
+               _subdomainCounter = 0;
+               // Try after 15 minutes
+               setTimeout(startLocalhostProxy, 15 * 60 * 1000);
             }
          }
       });
