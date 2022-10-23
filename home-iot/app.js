@@ -184,46 +184,54 @@ function emitPeriodicData(socket)
       });
 }
 
-
-
 function executePythonScript(codeFileName, parseCallback)
 {
    if(debug_ >= LogLevel.verbose) log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
-   
-   const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
-   return new Promise((resolve, reject) => {
-      try {
-         if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> in promise'})
-         
-         pyProg.stdout.on('data', function(data) {
-            if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> data', data})
-            let result = {success: undefined}; 
-            try {
-               result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
-               result.success = true;
-               resolve(result);
-            }
-            catch (error) {
-               result.error = error.toJsonString('execute-python > on data event');
-               result.success = false;
-               reject(result);
-            }
-         });
 
-         pyProg.stdout.on('error', function(err) {
-            if(debug_ >= LogLevel.important) log({msg: 'pyProg.stdout.on > error', err});
+   return new Promise((resolve, reject) => {
+      exec(`python ${__dirname}/pythonScript/${codeFileName}`, (error, data) => {
+            if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> in promise'});
             
-            reject({error: err.toJsonString('execute-python > on error event'), succes: false});
+            log({error, data});
+
+            if(error) {
+               if(debug_ >= LogLevel.important) log({msg: ' > error', err});
+               
+               reject({error: err.toJsonString('execute-python > on error event'), succes: false});
+            }
+            else {
+               if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> success', data});
+         
+               let result = {}; 
+               try {
+                  result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
+                  result.success = true;
+                  resolve(result);
+               }
+               catch (error) {
+                  result.error = error.toJsonString('execute-python > on data event');
+                  result.success = false;
+                  reject(result);
+               }
+            }
+         });//exec
+      });//promise
+}
+
+function getPiHealthData() {
+   if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
+   return new Promise((resolve, reject) => {
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+         (error, data) => {
+            if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
+            if(error) {
+               console.error({errorOnPiHealthData: error})
+               reject({error: error.toJsonString('piHealthData'), succes: false})
+            }      
+            else {
+               resolve({value: data, success: true});
+            }
          });
-         pyProg.stdout.on('end', function(data){
-            if(debug_ >= LogLevel.verbose) log({msg: 'pyProg.stdout.on > end', data});
-            resolve({error: new Error('Data cannot be retreived from Python script.').toJsonString('execute-python > on end event'), success: false});
-         });
-      }
-      catch(err) {
-         log({execPythonError: err})
-         reject({error: err, success: false})
-      }
    });
 }
 
@@ -261,70 +269,48 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    return val;
 }
 
-function getPiHealthData() {
-   if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
-   return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
-         (error, data) => {
-            if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
-            if(error) {
-               console.error({errorOnPiHealthData: error})
-               reject({error: error.toJsonString('piHealthData'), succes: false})
-            }      
-            else {
-               resolve({value: data, success: true});
-            }
-         });
-   });
-}
-
 function startLocalhostProxy() {
    _localProxyStatus = 'Initializing...';
    let wait = 30 * 1000;
 
    if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
-   try {
-      localtunnel({ subdomain: getSubdomain(_subdomainCounter), port: _port })
-         .then(tunnel => {
-            _localTunnelInstance = tunnel;
-            _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
+   
+   const spawnCommand = spawn(`lt`,
+      [`--subdomain ${getSubdomain(_subdomainCounter)}`, `--port ${_port}`],
+      { detached: true, shell: true });
 
-            if(debug_ >= LogLevel.important) log({_localProxyStatus});
+      spawnCommand.stdout.on('data', (data) => {
+         log('spawncommand stdout', data.toString());
 
-            if(tunnel.url.startsWith(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
-               if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: tunnel.url });
-            
-               // Multiple subdomains requested but didn't 
-               // get the requested one. Try after some time.
-               if(_subdomainCounter === 2) {
-                  _subdomainCounter = 0;
-                  // Try after 15 minutes
-                  setTimeout(startLocalhostProxy, 15 * 60 * 1000);
-                  return;
-               }
+         if(debug_ >= LogLevel.important) log({_localProxyStatus});
 
+         if(data.includes(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
+            if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: data.toString() });
+         
+            // Multiple subdomains requested but didn't 
+            // get the requested one. Try after some time.
+            if(_subdomainCounter === 2) {
+               _subdomainCounter = 0;
+               // Try after 15 minutes
+               setTimeout(startLocalhostProxy, 15 * 60 * 1000);
+            }
+            else {
+               spawnCommand.kill('SIGINT');
                _subdomainCounter++;
                startLocalhostProxy(); // tunnel.close() doesn't always fire the 'close' event.
-               return;
             }
+         }
+      });
 
-            tunnel.on('close', () => {
-               _localProxyStatus = `Closed. Initializing in ${wait} miliseconds.`;
-               
-               if(debug_ >= LogLevel.important) log({_localProxyStatus});
+      spawnCommand.stderr.on('data', errorData => {
+         if(debug_ >= LogLevel.important) log({msg: 'startLocalhostProxy() > stderr', error: errorData.toString()});
+      });
 
-               setTimeout(() => startLocalhostProxy, wait); // restart the localtunnel after 30 seconds
-            });
-         })
-         .catch(err => {
-            _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
-            if(debug_ >= LogLevel.important) log({_localProxyStatus});
-         });
-   }
-   catch(err) {
-      log({err, msg: `Handled exception on LocalTunnel. Reinitializing in ${wait} miliseconds.`});
-      setTimeout(() => startLocalhostProxy, wait);
-   }
+      spawnCommand.on('close', (code) => {
+         log('spawn > exit', code);
+      })
+
+      spawnCommand.on('error', log);
 }
 
 function getSubdomain(counter) {
