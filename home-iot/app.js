@@ -59,8 +59,8 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
-   emitPeriodicData(socket);
-   setInterval(emitPeriodicData, DELAY, socket);
+   periodicTask(socket);
+   setInterval(periodicTask, DELAY, socket);
 
    // Get bulb control mode from client
    socket.on('bulb-control-mode', function (data) {
@@ -133,12 +133,19 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
+function periodicTask(socket) {
+   if(io.sockets.server.engine.clientsCount > 0) {
+      emitPeriodicData(socket);
+   }
+   else {
+      executePythonScript('photoresistor_with_a2d.py', toNumber)
+         .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
+         .catch(data => debug_ >= LogLevel.important ? log(data) : null);
+   }
+}
+
 function emitPeriodicData(socket)
 {
-   // todo
-   // if(io.sockets.server.engine.clientsCount === 0)
-   //    return;
-
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
          if(debug_ >= LogLevel.verbose) log('Promise.allSettled sattled', results)
@@ -150,11 +157,11 @@ function emitPeriodicData(socket)
             photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
             bulbControlMode: _values.bulbControlMode,
             bulbState: null,
-            from: 'server',
-            to: 'connectee',
             connectionCount: io.sockets.server.engine.clientsCount,
             localProxyStatus: _localProxyStatus,
-            time: new Date().toLocaleString()
+            time: new Date().toLocaleString(),
+            from: 'server',
+            to: 'connectee'
          }
          
          data.bulbState = data.photoresistor.success?
@@ -170,9 +177,10 @@ function emitPeriodicData(socket)
          socket.emit('periodic-data', data);
       })
       .catch(err => {
-         if(debug_ >= LogLevel.important) log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
+         if(debug_ >= LogLevel.important)
+            log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
          
-         socket.emit('periodic-data', { from: 'server', error: err.toJsonString('emitSensorsData > catch'), to: 'connectee' });
+         // No need to emit the event; because the data fields will be in a unstable state.
       });
 }
 
