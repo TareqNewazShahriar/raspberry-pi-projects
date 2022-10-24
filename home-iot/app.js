@@ -14,10 +14,10 @@ const _ProxyTestInterval = 17 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _Port = 8080;
-var _localTunnelInstance = null;
 var _localProxyStatus = 'Uninitialized';
 var _Optocoupler_Pin = 16;
 const _Subdomain = 'whats-up-homie';
+var _subdomainCounter = -1;
 const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
 
@@ -32,17 +32,15 @@ var _values = {};
    
    http.listen(_Port);
    log(`Node server started. Port ${_Port}.`);
+   process.on('warning', e => console.warn(e.stack));
+   process.on('SIGINT', () => {
+      log('Node server exiting.');
+      process.exit();
+   });
 
-   startLocalhostProxy();
-   setInterval(startLocalhostProxy, _ProxyTestInterval);
+   startLocalhostProxy(onProxyResolved);
+   setInterval(pingProxy, _ProxyTestInterval);
 })();
-
-process.on('warning', e => console.warn(e.stack));
-process.on('SIGINT', () => {
-   _localTunnelInstance ? _localTunnelInstance.close() : null;
-   log('Node server exiting.');
-   process.exit();
-});
 
 function responseHandler(req, res) {
    // read file index.html in public folder
@@ -275,7 +273,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    return val;
 }
 
-function startLocalhostProxy(subdomainCounter) {
+function startLocalhostProxy(onProxyResolved, subdomainCounter) {
    subdomainCounter = subdomainCounter || 0;
 
    _localProxyStatus = 'Initializing...';
@@ -287,36 +285,52 @@ function startLocalhostProxy(subdomainCounter) {
       [`--subdomain ${getSubdomain(subdomainCounter)}`, `--port ${_Port}`],
       { detached: true, shell: true });
 
-      spawnCommand.stdout.on('data', (data) => {
-         log('spawncommand stdout', data.toString());
+      spawnCommand.stdout.on('data', (bufferData) => {
+         if(_DebugLevel >= LogLevel.verbose) log('spawncommand stdout', bufferData);
 
-         if(_DebugLevel >= LogLevel.important) log({_localProxyStatus});
+         let msg = (bufferData||'').toString();
 
-         if(data.includes(`https://${getSubdomain(subdomainCounter)}.`) === false) {
-            if(_DebugLevel >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter: subdomainCounter, url: data.toString() });
-         
+         if(bufferData.includes(`https://${getSubdomain(subdomainCounter)}.`)) {
+            _localProxyStatus = `Proxy resolved. [Message: ${msg}]`;
+         }
+         else {
+            if(_DebugLevel >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter: subdomainCounter, msg });
+            
             if(subdomainCounter <= 2) {
                spawnCommand.kill('SIGINT');
-               startLocalhostProxy(subdomainCounter+1); // tunnel.close() doesn't always fire the 'close' event.
+               startLocalhostProxy(onProxyResolved, subdomainCounter+1); // tunnel.close() doesn't always fire the 'close' event.
             }
-            else {
-               // Note: subdomains requested several times but didn't 
-               //       get the requested one. Try after some time.
 
-               setTimeout(startLocalhostProxy, _ProxyTestInterval);
-            }
+            // Note: If subdomain requested several times but didn't 
+            //       get the requested one, then no need to try.
+            //       proxy ping task will start this process.
          }
+
+         onProxyResolved(subdomainCounter);
       });
 
       spawnCommand.stderr.on('data', errorData => {
-         if(_DebugLevel >= LogLevel.important) log({msg: 'startLocalhostProxy() > stderr', error: errorData.toString()});
+         if(_DebugLevel >= LogLevel.important) log({msg: 'proxy spawn > stderr', error: errorData.toString()});
       });
 
-      spawnCommand.on('close', (code) => {
-         log('spawn > exit', code);
+      spawnCommand.on('exit', (code) => {
+         if(_DebugLevel >= LogLevel.verbose) log('proxy spawn > exit', code);
       })
 
-      spawnCommand.on('error', log);
+      spawnCommand.on('error', error => {
+          if(_DebugLevel >= LogLevel.important) log('proxy spawn > error', error);
+      });
+}
+
+function pingProxy(getUrlCallback) {
+   fetch(getUrlCallback(), 
+      { headers: { 'Bypass-Tunnel-Reminder': 1, '': '' } })
+      .then()
+      .catch();
+}
+
+function onProxyResolved(counter) {
+   _subdomainCounter = counter;
 }
 
 function getSubdomain(counter) {
