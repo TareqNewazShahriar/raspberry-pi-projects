@@ -1,14 +1,15 @@
 const { exec, spawn } = require('child_process');
 const http = require('http').createServer(responseHandler);
+const https = require('https');
 const fs = require('fs'); //require filesystem module
-const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
+const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const localtunnel = require('localtunnel');
+
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const _DebugLevel = LogLevel.important;
+const _DebugLevel = LogLevel.medium;
 const _SensorMonitorInterval = 5 * 60 * 1000;
 const _ProxyTestInterval = 17 * 60 * 1000;
 const ON = 1;
@@ -17,7 +18,7 @@ const _Port = 8080;
 var _localProxyStatus = 'Uninitialized';
 var _Optocoupler_Pin = 16;
 const _Subdomain = 'whats-up-homie';
-var _subdomainCounter = -1;
+var _subdomainCounter = 0;
 const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
 
@@ -38,8 +39,10 @@ var _values = {};
       process.exit();
    });
 
-   startLocalhostProxy(onProxyResolved);
-   setInterval(pingProxy, _ProxyTestInterval);
+   pingProxy(() => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
+   setInterval(pingProxy, 
+      _ProxyTestInterval,
+      () => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
 })();
 
 function responseHandler(req, res) {
@@ -288,10 +291,9 @@ function startLocalhostProxy(onProxyResolved, subdomainCounter) {
 
          let msg = (bufferData||'').toString();
 
-         if(bufferData.includes(`https://${getSubdomain(subdomainCounter)}.`)) {
-            _localProxyStatus = `Proxy resolved. [Message: ${msg}]`;
-         }
-         else {
+         _localProxyStatus = `Proxy resolved. [Message: ${msg}]`;
+
+         if(msg.includes(`https://${getSubdomain(subdomainCounter)}.`) === false) {
             if(_DebugLevel >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter: subdomainCounter, msg });
             
             if(subdomainCounter <= 2) {
@@ -320,11 +322,24 @@ function startLocalhostProxy(onProxyResolved, subdomainCounter) {
       });
 }
 
-function pingProxy(getUrlCallback) {
-   fetch(getUrlCallback(), 
-      { headers: { 'Bypass-Tunnel-Reminder': 1, '': '' } })
-      .then()
-      .catch();
+function pingProxy(getUrl) {
+   https.get(`https://sfsfsdfsdfswwerw4344.loca.lt`,
+      {
+         headers: {
+            'Bypass-Tunnel-Reminder': 1,
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20100101 Phore/106.0'
+         }
+      },
+      (res) => {
+         if(_DebugLevel >= LogLevel.medium)
+            log('ping proxy > then', res.statusCode, res.statusMessage, getUrl());
+         if(res.statusCode !== 200) {
+            startLocalhostProxy(onProxyResolved, 0);
+         }
+      })
+      .on('error', error => {
+         if(_DebugLevel >= LogLevel.important) log({msg: `Couldn't access ${getUrl()}`, error: error.toJsonString()});
+      });
 }
 
 function onProxyResolved(counter) {
