@@ -190,21 +190,19 @@ function emitPeriodicData(socket)
 
 function executePythonScript(codeFileName, parseCallback)
 {
-   if(_DebugLevel >= LogLevel.verbose) log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+   if(_DebugLevel >= LogLevel.verbose) log({ msg:'executePythonScript entered', path: `${__dirname}/pythonScript/${codeFileName}` })
 
    return new Promise((resolve, reject) => {
       exec(`python ${__dirname}/pythonScript/${codeFileName}`, (error, data) => {
-            if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript() -> in promise'});
-            
-            log({error, data});
+            if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> in promise'});
 
             if(error) {
-               if(_DebugLevel >= LogLevel.important) log({msg: ' > error', err});
+               if(_DebugLevel >= LogLevel.important) log({msg: 'executePythonScript > error', err});
                
                reject({error: err.toJsonString('execute-python > on error event'), succes: false});
             }
             else {
-               if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript() -> success', data});
+               if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> success', data});
          
                let result = {}; 
                try {
@@ -213,7 +211,7 @@ function executePythonScript(codeFileName, parseCallback)
                   resolve(result);
                }
                catch (error) {
-                  result.error = error.toJsonString('execute-python > on data event');
+                  result.error = error.toJsonString('execute-python > data > try-catch');
                   result.success = false;
                   reject(result);
                }
@@ -346,7 +344,7 @@ function log(...params) {
       fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
     } 
     catch (err) {
-      console.log(new Date().toLocaleString(), 'Error on writing to log file.', typeof err, err instanceof Object);
+      console.log(new Date().toLocaleString(), ' ** Error on writing to log file.', err.message);
     }
     finally {
       if (fd !== undefined)
