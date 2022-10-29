@@ -51,23 +51,19 @@ function getCollection(collectionName, field, operator, val) {
 }
 
 function getCollectionWithListener(collectionName, field, operator, val, onChange) {
-   let q = query(collection(_db, collectionName), where(field, operator, val));
-   const unsubscribe = onSnapshot(q,
-      querySnapshot => {
+   const query = db.collection(collectionName).where(field, operator, val);
+   const unsubCallback = query.onSnapshot(querySnapshot => {
          const list = [];
-         querySnapshot.docChanges().forEach((res) => {
+         querySnapshot.docChanges().forEach(res => {
             const data = res.doc.data();
             data.id = res.doc.id;
             list.push({ state: res.type, doc: data });
          });
          onChange({ success: true, data: list, pending: querySnapshot.metadata.hasPendingWrites});
       },
-      err => {
-         onChange({ success: false, errorMessage: `Error occurred on ${collectionName} listener. [${err.message}]`});
-      }
-   );
+      err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName} listener. [${err.message}]`}));
 
-   return unsubscribe;
+      return unsubCallback;
 }
 
 function getById(collectionName, docId) {
@@ -88,7 +84,25 @@ function getById(collectionName, docId) {
    });
 }
 
-function addNewDoc(collectionName, data) {
+function getByIdWithListener(collectionName, docId, onChange) {
+   const doc = db.collection(collectionName).doc(docId);
+
+   const unsubCallback = doc.onSnapshot(docSnapshot => {
+         console.log('getByIdWithListener', docSnapshot, docSnapshot.docChanges, docSnapshot.data);
+         
+         const result = docSnapshot.docChanges();
+         const data = result.doc.data();
+         data.id = result.doc.id;
+         
+         onChange({ success: true, data: data, state: result.state, pending: querySnapshot.metadata.hasPendingWrites});
+      },
+      err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName}/${docId} listener. [${err.message}]`})
+   );
+
+   return unsubCallback;
+}
+
+function addDoc(collectionName, data) {
    return new Promise((resolve, reject) => {
       db.collection(collectionName)
          .add(data)
@@ -114,7 +128,8 @@ const firestoreService = {
    getCollection,
    getCollectionWithListener,
    getById,
-   addNewDoc,
+   getByIdWithListener,
+   addDoc,
    update
 };
 
