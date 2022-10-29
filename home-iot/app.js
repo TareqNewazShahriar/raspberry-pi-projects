@@ -4,6 +4,7 @@ const https = require('https');
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
+const {firestore, DB} = require('./firestoreService');
 
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };

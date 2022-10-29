@@ -106,3 +106,5 @@ dist
 
 # is it python compiled file
 *.pyc
+
+secrets/
