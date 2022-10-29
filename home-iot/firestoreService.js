@@ -36,8 +36,7 @@ function getCollection(collectionName, field, operator, val) {
             else {
                let list = [];
                result.forEach(doc => {
-                  list.push(doc.data());
-                  list.id = doc.id;
+                  list.push(doc.prepareTheDoc());
                });
                resolve(list);
             }
@@ -53,8 +52,7 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
    const unsubCallback = query.onSnapshot(querySnapshot => {
          const list = [];
          querySnapshot.docChanges().forEach(res => {
-            const data = res.doc.data();
-            data.id = res.doc.id;
+            const data = res.doc.prepareTheDoc();
             list.push({ state: res.type, doc: data });
          });
          onChange({ success: true, data: list, pending: querySnapshot.metadata.hasPendingWrites});
@@ -71,8 +69,7 @@ function getById(collectionName, docId) {
          .then(docSpapshot => {
             let data = null;
             if(docSpapshot.exists) {
-               data = docSpapshot.data();
-               data.id = docSpapshot.id;
+               data = docSpapshot.prepareTheDoc();
             }
             resolve(data);
          })
@@ -89,8 +86,7 @@ function getByIdWithListener(collectionName, docId, onChange) {
          console.log('getByIdWithListener', docSnapshot, docSnapshot.docChanges, docSnapshot.data);
          
          const result = docSnapshot.docChanges();
-         const data = result.doc.data();
-         data.id = result.doc.id;
+         const data = result.doc.prepareTheDoc();
          
          onChange({ success: true, data: data, state: result.state, pending: querySnapshot.metadata.hasPendingWrites});
       },
@@ -120,6 +116,18 @@ function update(collectionName, docId, data) {
          .then(() => resolve())
          .catch(error => reject({ message: `Error on updating a record in ${collectionName}, ID: ${docId}.`, error: error }));
    });
+}
+
+Object.prototype.prepareTheDoc = function(doc) {
+   let document = doc.data();
+   document.id = doc.id;
+   document._readTime = doc._readTime.toDate();
+   document._createTime = doc._createTime.toDate();
+   document._updateTime = doc._createTime._nanoseconds === doc._updateTime._nanoseconds ? null : doc._updateTime.toDate();
+
+   document.keys.forEach(k => document[k] instanceof Timestamp ? document[k] = document[k].toDate() : null);
+
+   return document;
 }
 
 const firestoreService = {
