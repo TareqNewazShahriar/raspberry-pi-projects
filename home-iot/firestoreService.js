@@ -1,7 +1,7 @@
 const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
-const { getAnalytics } = require('firebase-admin/analytics');
-const { onSnapshot, getFirestore, collection, getDoc, getDocs, addDoc, setDoc, updateDoc, doc, query, where, WhereFilterOp } = require('firebase/firestore');
+//const { getAnalytics } = require('firebase-admin/analytics');
+const { onSnapshot, collection, getDoc, getDocs, addDoc, setDoc, updateDoc, doc, query, where, WhereFilterOp } = require('firebase-admin/firestore');
 const serviceAccountConfig = require('./whats-up-home-iot-ea85a9d1886e.json');
 
 const DB = {
@@ -17,9 +17,9 @@ let _analytics;
 try {
    _app = initializeApp({ credential: cert(serviceAccountConfig) }); 
    _db = getFirestore();
-   _analytics = getAnalytics(_app);
+   //_analytics = getAnalytics(_app);
 
-   console.log({_analytics})
+   //console.log({_analytics})
 }
 catch (error) {
    console.log('Error occurred while initializing the database.');
@@ -134,4 +134,4 @@ const firestoreService = {
    update
 };
 
-export { firestoreService, DB };
+module.export = { firestoreService, DB };
