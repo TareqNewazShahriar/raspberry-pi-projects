@@ -2,7 +2,7 @@ const { initializeApp, applicationDefault, cert } = require('firebase-admin/app'
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
 //const { getAnalytics } = require('firebase-admin/analytics');
 const { onSnapshot, collection, getDoc, getDocs, addDoc, setDoc, updateDoc, doc, query, where, WhereFilterOp } = require('firebase-admin/firestore');
-const serviceAccountConfig = require('./whats-up-home-iot-ea85a9d1886e.json');
+const serviceAccountConfig = require('./secrets/firebase-service-account-key.json');
 
 const DB = {
    Collections: { values: 'values', faces: 'faces', logs: 'logs' },
@@ -19,37 +19,39 @@ try {
    _db = getFirestore();
    //_analytics = getAnalytics(_app);
 
-   //console.log({_analytics})
+   console.log({Timestamp, FieldValue})
 }
 catch (error) {
    console.log('Error occurred while initializing the database.');
 }
 
-function getAll(collectionName, field, operator, val) {
+function getCollection(collectionName, field, operator, val) {
    return new Promise((resolve, reject) => {
-      let q;
+      const collectionRef = db.collection(collectionName);
       if(field && operator && val)
-         q = query(collection(_db, collectionName), where(field, operator, val));
-      else
-         q = collection(getFirestore(_app), collectionName);
-
-      getDocs(q)
-         .then(queryResult => {
-            const list = queryResult.docs.map(doc => {
-               const data = doc.data();
-               data.id = doc.id;
-               return data;
-            });
-            resolve(list || []);
+      collectionRef.where(field, operator, val)
+         .get()
+         .then(result => {
+            if (result.empty) {
+               resolve([]);
+            }
+            else {
+               let list = [];
+               result.forEach(doc => {
+                  list.push(doc.data());
+                  list.id = doc.id;
+                  console.log(doc);
+               });
+            }
          })
          .catch(err => {
-            reject(err);
-         });
+            reject({message: `Error occurred while getting data. Document name: ${collectionName} [${err.message}]`, error: err.toJsonString()});
+         });;
    });
 }
 
 function getCollectionWithListener(collectionName, field, operator, val, onChange) {
-   let q = query(collection(getFirestore(_app), collectionName), where(field, operator, val));
+   let q = query(collection(_db, collectionName), where(field, operator, val));
    const unsubscribe = onSnapshot(q,
       querySnapshot => {
          const list = [];
@@ -68,70 +70,52 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
    return unsubscribe;
 }
 
-function getSingle(collectionName, docId) {
+function getById(collectionName, docId) {
    return new Promise((resolve, reject) => {
-      const docRef = doc(getFirestore(_app), collectionName, docId);
-      getDoc(docRef)
+      const docRef = db.collection(collectionName).doc(docId);
+      docRef.get()
          .then(docSpapshot => {
             let data = null;
-            if(docSpapshot.exists()) {
+            if(docSpapshot.exists) {
                data = docSpapshot.data();
                data.id = docSpapshot.id;
             }
             resolve(data);
          })
          .catch(err => {
-            reject(`Error occurred while getting data. Document name: ${collectionName} [${err.message}]`);
+            reject({message: `Error occurred while getting data. Document name: ${collectionName}, doc-id: ${docId}. [${err.message}]`, error: err.toJsonString()});
          });
    });
 }
 
-function addNewDoc(collectionName, data, footprint) {
+function addNewDoc(collectionName, data) {
    return new Promise((resolve, reject) => {
-      addDoc(collection(_db, collectionName), data)
-         .then(docRef => resolve(docRef.id))
-         .catch(err => reject(err));
+      db.collection(collectionName)
+         .add(data)
+         .then(result => {
+            resolve(result.id);
+         })
+         .catch(err => {
+            reject({message: `Error occurred while adding data. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
+         });
    });
 }
 
-function writeNewDoc_lazy(collectionName, data) {
+function update(collectionName, docId, data) {
    return new Promise(async(resolve, reject) => {
-      try {
-         const db = getFirestore(_app);
-         // Add a new document with a generated id
-         const newCityRef = doc(collection(db, collectionName));
-
-         // ...
-
-         // AND on a later point, set data to the previously created blank document
-         await setDoc(newCityRef, data);
-         resolve(newCityRef.id);
-      }
-      catch (error) {
-         reject(error);
-      }
-   });
-}
-
-function update(collectionName, docId, data, footprint) {
-   return new Promise(async(resolve, reject) => {
-      if(footprint)
-         addFootprint(data, false);
-
-      const db = getFirestore(_app);
-      const dbDocRef = doc(db, collectionName, docId);
-      updateDoc(dbDocRef, data)
-         .then(() => resolve(null))
-         .catch(error => reject({ msg: `Error on updating a record in ${collectionName}, ID: ${docId}.`, error: error }));
+      const docRef = db.collection(collectionName).doc(docId);
+      docRef.update(data)
+         .then(() => resolve())
+         .catch(error => reject({ message: `Error on updating a record in ${collectionName}, ID: ${docId}.`, error: error }));
    });
 }
 
 const firestoreService = {
-   getAll,
+   getCollection,
    getCollectionWithListener,
-   getSingle,
+   getById,
    addNewDoc,
    update
 };
 
-module.export = { firestoreService, DB };
+module.exports = { firestoreService, DB };

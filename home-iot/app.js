@@ -1,10 +1,14 @@
 const { exec, spawn } = require('child_process');
 const http = require('http').createServer(responseHandler);
-const https = require('https');
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const {firestore, DB} = require('./firestoreService');
+const {firestoreService, DB} = require('./firestoreService');
+
+firestoreService.getAll(DB.Collections.logs)
+   .then(data => log(data))
+   .catch(err => log(err));
+
 
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
@@ -12,14 +16,11 @@ const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dar
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.medium;
 const _SensorMonitorInterval = 5 * 60 * 1000;
-const _ProxyTestInterval = 17 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _Port = 8080;
 var _localProxyStatus = 'Uninitialized';
 var _Optocoupler_Pin = 16;
-const _Subdomain = 'whats-up-homie';
-var _subdomainCounter = 0;
 const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
 
@@ -39,11 +40,6 @@ var _values = {};
       log('Node server exiting.');
       process.exit();
    });
-
-   pingProxy(() => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
-   setInterval(pingProxy, 
-      _ProxyTestInterval,
-      () => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
 })();
 
 function responseHandler(req, res) {
@@ -166,7 +162,6 @@ function emitPeriodicData(socket)
             bulbControlMode: _values.bulbControlMode,
             bulbState: null,
             connectionCount: io.sockets.server.engine.clientsCount,
-            localProxyStatus: _localProxyStatus,
             time: new Date().toLocaleString(),
             from: 'server',
             to: 'connectee'
@@ -275,97 +270,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    return val;
 }
 
-function startLocalhostProxy(onProxyResolved, subdomainCounter) {
-   subdomainCounter = subdomainCounter || 0;
-
-   _localProxyStatus = 'Initializing...';
-   let wait = 30 * 1000;
-
-   if(_DebugLevel >= LogLevel.verbose) log({_localProxyStatus});
-   
-   const spawnCommand = spawn(`lt`,
-      [`--subdomain ${getSubdomain(subdomainCounter)}`, `--port ${_Port}`],
-      { detached: true, shell: true });
-
-      spawnCommand.stdout.on('data', (bufferData) => {
-         if(_DebugLevel >= LogLevel.verbose) log('spawncommand stdout', bufferData);
-
-         let msg = (bufferData||'').toString();
-
-         _localProxyStatus = `Proxy resolved. [Message: ${msg}]`;
-
-         if(msg.includes(`https://${getSubdomain(subdomainCounter)}.`) === false) {
-            if(_DebugLevel >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter: subdomainCounter, msg });
-            
-            if(subdomainCounter <= 2) {
-               spawnCommand.kill('SIGINT');
-               startLocalhostProxy(onProxyResolved, subdomainCounter+1); // tunnel.close() doesn't always fire the 'close' event.
-            }
-
-            // Note: If subdomain requested several times but didn't 
-            //       get the requested one, then no need to try.
-            //       proxy ping task will start this process.
-         }
-
-         onProxyResolved(subdomainCounter);
-      });
-
-      spawnCommand.stderr.on('data', errorData => {
-         if(_DebugLevel >= LogLevel.important) log({msg: 'proxy spawn > stderr', error: errorData.toString()});
-      });
-
-      spawnCommand.on('exit', (code) => {
-         if(_DebugLevel >= LogLevel.verbose) log('proxy spawn > exit', code);
-      })
-
-      spawnCommand.on('error', error => {
-          if(_DebugLevel >= LogLevel.important) log('proxy spawn > error', error);
-      });
-}
-
-function pingProxy(getUrl) {
-   https.get(`https://sfsfsdfsdfswwerw4344.loca.lt`,
-      {
-         headers: {
-            'Bypass-Tunnel-Reminder': 1,
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20100101 Phore/106.0'
-         }
-      },
-      (res) => {
-         if(_DebugLevel >= LogLevel.medium)
-            log('ping proxy > then', res.statusCode, res.statusMessage, getUrl());
-         if(res.statusCode !== 200) {
-            startLocalhostProxy(onProxyResolved, 0);
-         }
-      })
-      .on('error', error => {
-         if(_DebugLevel >= LogLevel.important) log({msg: `Couldn't access ${getUrl()}`, error: error.toJsonString()});
-      });
-}
-
-function onProxyResolved(counter) {
-   _subdomainCounter = counter;
-}
-
-function getSubdomain(counter) {
-   return `${_Subdomain}${counter ? counter : ''}`;
-}
-
 function log(...params) {
    console.log(`${new Date().toLocaleString()}\n`, params);
-   // Log in file
-   let fd;
-   try {
-      fd = fs.openSync(`${__dirname}/output/log-${new Date().toISOString().substring(0,10)}.txt`, 'a');
-      fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
-    } 
-    catch (err) {
-      console.log(new Date().toLocaleString(), ' ** Error on writing to log file.', err.message);
-    }
-    finally {
-      if (fd !== undefined)
-        fs.closeSync(fd);
-    }
 }
 
 function toNumber(text) {
