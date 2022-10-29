@@ -36,7 +36,7 @@ function getCollection(collectionName, field, operator, val) {
             else {
                let list = [];
                result.forEach(doc => {
-                  list.push(doc.prepareTheDoc());
+                  list.push(prepareTheDoc(doc));
                });
                resolve(list);
             }
@@ -52,7 +52,7 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
    const unsubCallback = query.onSnapshot(querySnapshot => {
          const list = [];
          querySnapshot.docChanges().forEach(res => {
-            const data = res.doc.prepareTheDoc();
+            const data = prepareTheDoc(res.doc);
             list.push({ state: res.type, doc: data });
          });
          onChange({ success: true, data: list, pending: querySnapshot.metadata.hasPendingWrites});
@@ -69,7 +69,7 @@ function getById(collectionName, docId) {
          .then(docSpapshot => {
             let data = null;
             if(docSpapshot.exists) {
-               data = docSpapshot.prepareTheDoc();
+               data = prepareTheDoc(docSpapshot);
             }
             resolve(data);
          })
@@ -86,7 +86,7 @@ function getByIdWithListener(collectionName, docId, onChange) {
          console.log('getByIdWithListener', docSnapshot, docSnapshot.docChanges, docSnapshot.data);
          
          const result = docSnapshot.docChanges();
-         const data = result.doc.prepareTheDoc();
+         const data = prepareTheDoc(result.doc);
          
          onChange({ success: true, data: data, state: result.state, pending: querySnapshot.metadata.hasPendingWrites});
       },
@@ -118,14 +118,20 @@ function update(collectionName, docId, data) {
    });
 }
 
-Object.prototype.prepareTheDoc = function(doc) {
+function prepareTheDoc(doc) {
    let document = doc.data();
    document.id = doc.id;
    document._readTime = doc._readTime.toDate();
    document._createTime = doc._createTime.toDate();
    document._updateTime = doc._createTime._nanoseconds === doc._updateTime._nanoseconds ? null : doc._updateTime.toDate();
 
-   document.keys.forEach(k => document[k] instanceof Timestamp ? document[k] = document[k].toDate() : null);
+   //document.keys.forEach(k => document[k] instanceof Timestamp ? document[k] = document[k].toDate() : null);
+   for (const key in document) {
+      if (Object.hasOwnProperty.call(document, key) && document[key] instanceof Timestamp) {
+         document[key] = document[key].toDate();
+      }
+   }
+
 
    return document;
 }
