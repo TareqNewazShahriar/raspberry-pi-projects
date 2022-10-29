@@ -1,0 +1,12 @@
+{
+   "type": "service_account",
+   "project_id": "whats-up-home-iot",
+   "private_key_id": "ea85a9d1886e3c5f50db9160fd86a2559184a1a4",
+   "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCrX5O9i0/TseOd\nY8aceIhVxW8VSle1hklxj7/R2VXo/nqp4BRhDIcIF/mwQSXJvkMu4kPU+4GPvol7\nnbve2G298BOqiq+00Q62eaXMME1dpyFty2Z1V/nMQlhr9UnSNIcPxtWS1vQzUVnX\nbpah3O4ZiljigqkltYgU4KBXm8MsbDNite2OtiK27kqF8+maC6rbnX9SI4XBIrRc\nFSPR64BZ0r7XYW5sFZ5xRyjK/BnP8De06BsMTy7Bl77H42S3lmvnGl0U7k3lJdEo\ndOpFRzScuhSGCxjNDxAIU8/WaNU68z65eWx02ONtRmcZU0fakGXEGmRx6Ip84M6p\nQqCwrvI/AgMBAAECggEAB2YdfVH99NBZ2Oo9YXUMwdM/3AX1KnetRRNlPzyoamJO\nTnZHuvbs/4r1c0gkxwSJZwVK02+2ZMvfqLAjM9hZSJmMZ9EMC/z4qyUuZNXzCSeV\nmGVvO4K8XLbClYqmEMbGzAYUI35XVb3d6KC0LTHaL80a0FC+18tyICCgm5e0gf7p\nyYeZS+skk9UZiZ398hahoHzRHkS/vLyp1sp4dwddyq79MQOQopg5xykC0xawPh+F\nJIRMtVXyKfQ1jlP3duIsKYlxFEY6tHxDXlzoUXEGemcg0JES+S8KAKuGXen34xM9\n2hKOomYcpeQL56s14PCQFZD07gAr3vCP7RFpopzGRQKBgQDgrUkXI1iVY6XiZ49L\nAlw2yi9/FCK5vwj6VxkuxFkZe5mTZGFHr+YdUH7saIz8Chr1L0FZkrTdmucFEE2Z\nvy6FMP1tPkUqmByx6Jv2N7FfJ1rhvUEAapexub5Q7LGdU0IPk+X/yXv7dad2nldl\nbRRKOF8ig5XFJXLA1LsYZ/m+iwKBgQDDQ+OOlJUasf6XMQc+RjSRgc4fFikl/Lno\nB8LMhSZ7IUkPOHwt9Wx/DrTI+WQX9ESzkVPzUI7qyY60sT/zVf1/gVtDjczVEMgs\nibIT6f9V2XklJnEExfzwOYvELWf64CA0Ou+wzSIXyILGWDsfWWeRSa5GUqa+XWhG\nl3kg3lElnQKBgQCjVBVgJqfM4cXDknkOlEao5c4lWWPtF7zVD+AUqVQEPF/mUACP\n9oUYJl4+SbrDtizmtFWTYhztRCBRBAsFi3+r/3MbqTrqve2OP4SxNsdQXvGoTMYm\nIVbpMhfyCD8OGWpanK+EhNoGcP8uMeliqCsp0VUHaBTGXnTPTVY9ZcieBQKBgHMi\nraPdwolqGLcnhqDWnpqJknNMCtlGSowhP2B+xnDl8IFUCgzDYMUOc9TpEHb7ZiMH\ndxvKDWsti8LJnO6rbnznVlvf2b5sVcvFKUaKvC7vu3oHT67D21/+XoY/S8dmrjZ9\n5eU3H3oslcfEMKBMhD/r1SHMDFvFEf5FxHt3+xsVAoGAZHbiy864ARhXJ990N1PC\n5xHej7qCMRrWhyIle4Mhwy1KxeM24Ru4HW2uUd9Cyn4EyTxHK5kqmet/zBol6b4A\ntM0beG7mnPjSx4+/P/IHdm6uvclbBDypZUZ+8Gs2sLDsqImStcqGMX1cl2kkAn+a\nZvz5wpMdmexy8XFATUVS20o=\n-----END PRIVATE KEY-----\n",
+   "client_email": "firebase-adminsdk-up01a@whats-up-home-iot.iam.gserviceaccount.com",
+   "client_id": "105073802743981713178",
+   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+   "token_uri": "https://oauth2.googleapis.com/token",
+   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-up01a%40whats-up-home-iot.iam.gserviceaccount.com"
+}

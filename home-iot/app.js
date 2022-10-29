@@ -1,42 +1,49 @@
 const { exec, spawn } = require('child_process');
 const http = require('http').createServer(responseHandler);
+const https = require('https');
 const fs = require('fs'); //require filesystem module
-const io = require('socket.io')(http) //require socket.io module and pass the http object (server)
+const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const localtunnel = require('localtunnel');
+
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const debug_ = LogLevel.important;
-const DELAY = 5 * 60 * 1000;
+const _DebugLevel = LogLevel.medium;
+const _SensorMonitorInterval = 5 * 60 * 1000;
+const _ProxyTestInterval = 17 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
-const _port = 8080;
-var _localTunnelInstance = null;
+const _Port = 8080;
 var _localProxyStatus = 'Uninitialized';
-var _optocoupler_pin = 16;
-const _subdomain = 'whats-up-homie';
+var _Optocoupler_Pin = 16;
+const _Subdomain = 'whats-up-homie';
 var _subdomainCounter = 0;
-const valuesJsonPath = `${__dirname}/data/values.json`;
+const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
-try {
-   _values = JSON.parse(fs.readFileSync(valuesJsonPath, 'utf8'));
-} 
-catch (error) {
-   log('Error on reading values.', error);
-}
 
-http.listen(_port);
-log(`Node server stated. Port ${_port}.`)
-startLocalhostProxy();
 
-process.on('warning', e => console.warn(e.stack));
-process.on('SIGINT', () => {
-   _localTunnelInstance ? _localTunnelInstance.close() : null;
-   log('Node server exiting.');
-   process.exit();
-});
+(function init() {
+   try {
+      _values = JSON.parse(fs.readFileSync(_ValuesJsonPath, 'utf8'));
+   } 
+   catch (error) {
+      log('Error on reading values.', error);
+   }
+   
+   http.listen(_Port);
+   log(`Node server started. Port ${_Port}.`);
+   process.on('warning', e => console.warn(e.stack));
+   process.on('SIGINT', () => {
+      log('Node server exiting.');
+      process.exit();
+   });
+
+   pingProxy(() => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
+   setInterval(pingProxy, 
+      _ProxyTestInterval,
+      () => `https://${getSubdomain(_subdomainCounter)}.loca.lt`);
+})();
 
 function responseHandler(req, res) {
    // read file index.html in public folder
@@ -60,7 +67,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
    periodicTask(socket);
-   setInterval(periodicTask, DELAY, socket);
+   setInterval(periodicTask, _SensorMonitorInterval, socket);
 
    // Get bulb control mode from client
    socket.on('bulb-control-mode', function (data) {
@@ -76,7 +83,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
             })
             .catch(errData => {})
             .finally(() => {
-               fs.writeFile(valuesJsonPath, JSON.stringify(_values), () => {});
+               fs.writeFile(_ValuesJsonPath, JSON.stringify(_values), () => {});
             });
       }
    });
@@ -88,7 +95,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       
       try {
          _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-         fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
+         fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
       }
       catch(err) {
          log('Error while switching bulb pin.', err, _values, data);
@@ -112,7 +119,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          process.exit();
       }
       catch (err) {
-         if(debug_ >= LogLevel.important)
+         if(_DebugLevel >= LogLevel.important)
             log('Error on terminating Node!', err.toJsonString());
       }
    });
@@ -120,14 +127,14 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    socket.on('reboot', function () {
       log('rebooting...');
       exec('sudo reboot', (error, data) => {
-            if(error && debug_ >= LogLevel.important)
+            if(error && _DebugLevel >= LogLevel.important)
                log({errorOnReboot: error, data});
          });
    });
    socket.on('poweroff', function () {
       log('turning off...');
       exec('sudo poweroff', (error, data) => {
-         if(error && debug_ >= LogLevel.important)
+         if(error && _DebugLevel >= LogLevel.important)
             log({errorOnPoweroff: error, data});
       });
    });
@@ -140,7 +147,7 @@ function periodicTask(socket) {
    else {
       executePythonScript('photoresistor_with_a2d.py', toNumber)
          .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
-         .catch(data => debug_ >= LogLevel.important ? log(data) : null);
+         .catch(data => _DebugLevel >= LogLevel.important ? log(data) : null);
    }
 }
 
@@ -148,7 +155,7 @@ function emitPeriodicData(socket)
 {
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
-         if(debug_ >= LogLevel.verbose) log('Promise.allSettled sattled', results)
+         if(_DebugLevel >= LogLevel.verbose) log('Promise.allSettled sattled', results)
          
          let data = {
             thermistor: results[0].value || results[0].reason,
@@ -169,61 +176,67 @@ function emitPeriodicData(socket)
             _values.bulbState;
          if(data.bulbState !== _values.bulbState) {
             _values.bulbState = data.bulbState;
-            fs.writeFileSync(valuesJsonPath, JSON.stringify(_values));
+            fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
          }
 
-         if(debug_ >= LogLevel.medium) log(data);
+         if(_DebugLevel >= LogLevel.medium) log(data);
 
          socket.emit('periodic-data', data);
       })
       .catch(err => {
-         if(debug_ >= LogLevel.important)
+         if(_DebugLevel >= LogLevel.important)
             log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
          
          // No need to emit the event; because the data fields will be in a unstable state.
       });
 }
 
-
-
 function executePythonScript(codeFileName, parseCallback)
 {
-   if(debug_ >= LogLevel.verbose) log({ msg:'executePythonScript() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
-   
-   const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
-   return new Promise((resolve, reject) => {
-      try {
-         if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> in promise'})
-         
-         pyProg.stdout.on('data', function(data) {
-            if(debug_ >= LogLevel.verbose) log({msg: 'executePythonScript() -> data', data})
-            let result = {success: undefined}; 
-            try {
-               result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
-               result.success = true;
-               resolve(result);
-            }
-            catch (error) {
-               result.error = error.toJsonString('execute-python > on data event');
-               result.success = false;
-               reject(result);
-            }
-         });
+   if(_DebugLevel >= LogLevel.verbose) log({ msg:'executePythonScript entered', path: `${__dirname}/pythonScript/${codeFileName}` })
 
-         pyProg.stdout.on('error', function(err) {
-            if(debug_ >= LogLevel.important) log({msg: 'pyProg.stdout.on > error', err});
-            
-            reject({error: err.toJsonString('execute-python > on error event'), succes: false});
+   return new Promise((resolve, reject) => {
+      exec(`python ${__dirname}/pythonScript/${codeFileName}`, (error, data) => {
+            if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> in promise'});
+
+            if(error) {
+               if(_DebugLevel >= LogLevel.important) log({msg: 'executePythonScript > error', err});
+               
+               reject({error: err.toJsonString('execute-python > on error event'), succes: false});
+            }
+            else {
+               if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> success', data});
+         
+               let result = {}; 
+               try {
+                  result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
+                  result.success = true;
+                  resolve(result);
+               }
+               catch (error) {
+                  result.error = error.toJsonString('execute-python > data > try-catch');
+                  result.success = false;
+                  reject(result);
+               }
+            }
+         });//exec
+      });//promise
+}
+
+function getPiHealthData() {
+   if(_DebugLevel >= LogLevel.verbose) log('getPiHealthData() entered')
+   return new Promise((resolve, reject) => {
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+         (error, data) => {
+            if(_DebugLevel >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
+            if(error) {
+               console.error({errorOnPiHealthData: error})
+               reject({error: error.toJsonString('piHealthData'), succes: false})
+            }      
+            else {
+               resolve({value: data, success: true});
+            }
          });
-         pyProg.stdout.on('end', function(data){
-            if(debug_ >= LogLevel.verbose) log({msg: 'pyProg.stdout.on > end', data});
-            resolve({error: new Error('Data cannot be retreived from Python script.').toJsonString('execute-python > on end event'), success: false});
-         });
-      }
-      catch(err) {
-         log({execPythonError: err})
-         reject({error: err, success: false})
-      }
    });
 }
 
@@ -236,7 +249,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
          (hour.between(17, 23) /*evening*/ || roomLightValue >= PhotoresistorValueStatuses.LightDark))
       {
          bulbState  = ON;
-         if(debug_ >= LogLevel.important)
+         if(_DebugLevel >= LogLevel.important)
             log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
       // Set OFF
@@ -245,90 +258,96 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
          (hour.between(1, 6) /*midnight*/ || roomLightValue < PhotoresistorValueStatuses.LightDark))
       {
          bulbState  = OFF;
-         if(debug_ >= LogLevel.important)
+         if(_DebugLevel >= LogLevel.important)
             log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
    }
 
    // Set the state to PIN
-   const pin = new Gpio(_optocoupler_pin, 'out');
+   const pin = new Gpio(_Optocoupler_Pin, 'out');
    pin.writeSync(bulbState);
    
    // whatever the request state is, return the actual state of the bulb.
    let val = pin.readSync();
-   if(debug_ >= LogLevel.important && val !== bulbState)
+   if(_DebugLevel >= LogLevel.important && val !== bulbState)
       log({msg: 'actual bulb state', requested: bulbState, actual: val});
    return val;
 }
 
-function getPiHealthData() {
-   if(debug_ >= LogLevel.verbose) log('getPiHealthData() entered')
-   return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
-         (error, data) => {
-            if(debug_ >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
-            if(error) {
-               console.error({errorOnPiHealthData: error})
-               reject({error: error.toJsonString('piHealthData'), succes: false})
-            }      
-            else {
-               resolve({value: data, success: true});
-            }
-         });
-   });
-}
+function startLocalhostProxy(onProxyResolved, subdomainCounter) {
+   subdomainCounter = subdomainCounter || 0;
 
-function startLocalhostProxy() {
    _localProxyStatus = 'Initializing...';
    let wait = 30 * 1000;
 
-   if(debug_ >= LogLevel.verbose) log({_localProxyStatus});
-   try {
-      localtunnel({ subdomain: getSubdomain(_subdomainCounter), port: _port })
-         .then(tunnel => {
-            _localTunnelInstance = tunnel;
-            _localProxyStatus = `Proxy resolved. [${tunnel.url}]`;
+   if(_DebugLevel >= LogLevel.verbose) log({_localProxyStatus});
+   
+   const spawnCommand = spawn(`lt`,
+      [`--subdomain ${getSubdomain(subdomainCounter)}`, `--port ${_Port}`],
+      { detached: true, shell: true });
 
-            if(debug_ >= LogLevel.important) log({_localProxyStatus});
+      spawnCommand.stdout.on('data', (bufferData) => {
+         if(_DebugLevel >= LogLevel.verbose) log('spawncommand stdout', bufferData);
 
-            if(tunnel.url.startsWith(`https://${getSubdomain(_subdomainCounter)}.`) === false) {
-               if(debug_ >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter, url: tunnel.url });
+         let msg = (bufferData||'').toString();
+
+         _localProxyStatus = `Proxy resolved. [Message: ${msg}]`;
+
+         if(msg.includes(`https://${getSubdomain(subdomainCounter)}.`) === false) {
+            if(_DebugLevel >= LogLevel.important) log({msg: `Didn't get the requested subdomain.`, _subdomainCounter: subdomainCounter, msg });
             
-               // Multiple subdomains requested but didn't 
-               // get the requested one. Try after some time.
-               if(_subdomainCounter === 2) {
-                  _subdomainCounter = 0;
-                  // Try after 15 minutes
-                  setTimeout(startLocalhostProxy, 15 * 60 * 1000);
-                  return;
-               }
-
-               _subdomainCounter++;
-               startLocalhostProxy(); // tunnel.close() doesn't always fire the 'close' event.
-               return;
+            if(subdomainCounter <= 2) {
+               spawnCommand.kill('SIGINT');
+               startLocalhostProxy(onProxyResolved, subdomainCounter+1); // tunnel.close() doesn't always fire the 'close' event.
             }
 
-            tunnel.on('close', () => {
-               _localProxyStatus = `Closed. Initializing in ${wait} miliseconds.`;
-               
-               if(debug_ >= LogLevel.important) log({_localProxyStatus});
+            // Note: If subdomain requested several times but didn't 
+            //       get the requested one, then no need to try.
+            //       proxy ping task will start this process.
+         }
 
-               setTimeout(() => startLocalhostProxy, wait); // restart the localtunnel after 30 seconds
-            });
-         })
-         .catch(err => {
-            _localProxyStatus = `Error on proxy resolve. [Error: ${err.toJsonString()}].`;
-            if(debug_ >= LogLevel.important) log({_localProxyStatus});
-         });
-   }
-   catch(err) {
-      log({err, msg: `Handled exception on LocalTunnel. Reinitializing in ${wait} miliseconds.`});
-      setTimeout(() => startLocalhostProxy, wait);
-   }
+         onProxyResolved(subdomainCounter);
+      });
+
+      spawnCommand.stderr.on('data', errorData => {
+         if(_DebugLevel >= LogLevel.important) log({msg: 'proxy spawn > stderr', error: errorData.toString()});
+      });
+
+      spawnCommand.on('exit', (code) => {
+         if(_DebugLevel >= LogLevel.verbose) log('proxy spawn > exit', code);
+      })
+
+      spawnCommand.on('error', error => {
+          if(_DebugLevel >= LogLevel.important) log('proxy spawn > error', error);
+      });
+}
+
+function pingProxy(getUrl) {
+   https.get(`https://sfsfsdfsdfswwerw4344.loca.lt`,
+      {
+         headers: {
+            'Bypass-Tunnel-Reminder': 1,
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20100101 Phore/106.0'
+         }
+      },
+      (res) => {
+         if(_DebugLevel >= LogLevel.medium)
+            log('ping proxy > then', res.statusCode, res.statusMessage, getUrl());
+         if(res.statusCode !== 200) {
+            startLocalhostProxy(onProxyResolved, 0);
+         }
+      })
+      .on('error', error => {
+         if(_DebugLevel >= LogLevel.important) log({msg: `Couldn't access ${getUrl()}`, error: error.toJsonString()});
+      });
+}
+
+function onProxyResolved(counter) {
+   _subdomainCounter = counter;
 }
 
 function getSubdomain(counter) {
-   return `${_subdomain}${counter ? counter : ''}`;
+   return `${_Subdomain}${counter ? counter : ''}`;
 }
 
 function log(...params) {
@@ -340,7 +359,7 @@ function log(...params) {
       fs.appendFileSync(fd, `${new Date().toLocaleString()}\n${JSON.stringify(params)}\n\n`, 'utf8');
     } 
     catch (err) {
-      console.log(new Date().toLocaleString(), 'Error on writing to log file.', typeof err, err instanceof Object);
+      console.log(new Date().toLocaleString(), ' ** Error on writing to log file.', err.message);
     }
     finally {
       if (fd !== undefined)
