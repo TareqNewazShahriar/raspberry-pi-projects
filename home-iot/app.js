@@ -13,20 +13,26 @@ const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _Port = 8080;
-var _localProxyStatus = 'Uninitialized';
 var _Optocoupler_Pin = 16;
 const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
+const _socket = null;
 
 
 (function init() {
-   try {
-      _values = JSON.parse(fs.readFileSync(_ValuesJsonPath, 'utf8'));
-   } 
-   catch (error) {
-      log('Error on reading values.', error);
-   }
-   
+   firestoreService.getByIdWithListener(DB.Collections.values, 'values', (data) => {
+      if(data.success) {
+         _values = data.doc;
+         log(data);
+
+         periodicTask();
+         setInterval(periodicTask, _SensorMonitorInterval);
+      }
+      else
+         log(data);
+   });
+      
+
    http.listen(_Port);
    log(`Node server started. Port ${_Port}.`);
    process.on('warning', e => console.warn(e.stack));
@@ -55,10 +61,9 @@ function responseHandler(req, res) {
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    log('socket connection established.');
    
-   fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
+   _socket = socket;
 
-   periodicTask(socket);
-   setInterval(periodicTask, _SensorMonitorInterval, socket);
+   fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
    // Get bulb control mode from client
    socket.on('bulb-control-mode', function (data) {
@@ -72,7 +77,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
                // send to all connected clients
                socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'all' });
             })
-            .catch(errData => {})
+            .catch(errData => { /* log */})
             .finally(() => {
                fs.writeFile(_ValuesJsonPath, JSON.stringify(_values), () => {});
             });
@@ -131,9 +136,9 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
-function periodicTask(socket) {
+function periodicTask() {
    if(io.sockets.server.engine.clientsCount > 0) {
-      emitPeriodicData(socket);
+      emitPeriodicData(_socket);
    }
    else {
       executePythonScript('photoresistor_with_a2d.py', toNumber)
@@ -170,7 +175,6 @@ function emitPeriodicData(socket)
          }
 
          if(_DebugLevel >= LogLevel.medium) log(data);
-
          socket.emit('periodic-data', data);
       })
       .catch(err => {
