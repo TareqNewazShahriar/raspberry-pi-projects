@@ -5,7 +5,7 @@ const io = require('socket.io')(http); //require socket.io module and pass the h
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const {firestoreService, DB} = require('./firestoreService');
 
-firestoreService.getAll(DB.Collections.logs)
+firestoreService.getCollection(DB.Collections.logs)
    .then(data => log(data))
    .catch(err => log(err));
 

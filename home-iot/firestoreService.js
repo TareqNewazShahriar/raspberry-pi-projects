@@ -1,7 +1,5 @@
 const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
-//const { getAnalytics } = require('firebase-admin/analytics');
-const { onSnapshot, collection, getDoc, getDocs, addDoc, setDoc, updateDoc, doc, query, where, WhereFilterOp } = require('firebase-admin/firestore');
 const serviceAccountConfig = require('./secrets/firebase-service-account-key.json');
 
 const DB = {
@@ -27,11 +25,11 @@ catch (error) {
 
 function getCollection(collectionName, field, operator, val) {
    return new Promise((resolve, reject) => {
-      const collectionRef = db.collection(collectionName);
-      if(field && operator && val)
-      collectionRef.where(field, operator, val)
-         .get()
-         .then(result => {
+      const promise = field && operator && val ?
+         _db.collection(collectionName).where(field, operator, val).get() :
+         _db.collection(collectionName).get();
+
+         promise.then(result => {
             if (result.empty) {
                resolve([]);
             }
@@ -40,8 +38,8 @@ function getCollection(collectionName, field, operator, val) {
                result.forEach(doc => {
                   list.push(doc.data());
                   list.id = doc.id;
-                  console.log(doc);
                });
+               resolve(list);
             }
          })
          .catch(err => {
@@ -51,7 +49,7 @@ function getCollection(collectionName, field, operator, val) {
 }
 
 function getCollectionWithListener(collectionName, field, operator, val, onChange) {
-   const query = db.collection(collectionName).where(field, operator, val);
+   const query = _db.collection(collectionName).where(field, operator, val);
    const unsubCallback = query.onSnapshot(querySnapshot => {
          const list = [];
          querySnapshot.docChanges().forEach(res => {
@@ -68,7 +66,7 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
 
 function getById(collectionName, docId) {
    return new Promise((resolve, reject) => {
-      const docRef = db.collection(collectionName).doc(docId);
+      const docRef = _db.collection(collectionName).doc(docId);
       docRef.get()
          .then(docSpapshot => {
             let data = null;
@@ -85,7 +83,7 @@ function getById(collectionName, docId) {
 }
 
 function getByIdWithListener(collectionName, docId, onChange) {
-   const doc = db.collection(collectionName).doc(docId);
+   const doc = _db.collection(collectionName).doc(docId);
 
    const unsubCallback = doc.onSnapshot(docSnapshot => {
          console.log('getByIdWithListener', docSnapshot, docSnapshot.docChanges, docSnapshot.data);
@@ -104,7 +102,7 @@ function getByIdWithListener(collectionName, docId, onChange) {
 
 function addDoc(collectionName, data) {
    return new Promise((resolve, reject) => {
-      db.collection(collectionName)
+      _db.collection(collectionName)
          .add(data)
          .then(result => {
             resolve(result.id);
@@ -117,7 +115,7 @@ function addDoc(collectionName, data) {
 
 function update(collectionName, docId, data) {
    return new Promise(async(resolve, reject) => {
-      const docRef = db.collection(collectionName).doc(docId);
+      const docRef = _db.collection(collectionName).doc(docId);
       docRef.update(data)
          .then(() => resolve())
          .catch(error => reject({ message: `Error on updating a record in ${collectionName}, ID: ${docId}.`, error: error }));
@@ -134,3 +132,11 @@ const firestoreService = {
 };
 
 module.exports = { firestoreService, DB };
+
+/*
+timestamp fields with every doc:
+
+  _readTime: Timestamp { _seconds: 1667069775, _nanoseconds: 928085000 },
+  _createTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 },
+  _updateTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 }
+*/
