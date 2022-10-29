@@ -16,8 +16,6 @@ try {
    _app = initializeApp({ credential: cert(serviceAccountConfig) }); 
    _db = getFirestore();
    //_analytics = getAnalytics(_app);
-
-   console.log({Timestamp, FieldValue})
 }
 catch (error) {
    console.log('Error occurred while initializing the database.');
@@ -34,11 +32,11 @@ function getCollection(collectionName, field, operator, val) {
                resolve([]);
             }
             else {
-               let list = [];
+               let collection = [];
                result.forEach(doc => {
-                  list.push(prepareTheDoc(doc));
+                  collection.push(prepareTheDoc(doc));
                });
-               resolve(list);
+               resolve(collection);
             }
          })
          .catch(err => {
@@ -47,15 +45,19 @@ function getCollection(collectionName, field, operator, val) {
    });
 }
 
+/*
+   After binding listener, onChange will be fired
+   immediately with state 'added' for all matching items.
+   As of Oct 22, Node.js implementation of firesotre SDK doesn't have pendingWrite feature.
+ */
 function getCollectionWithListener(collectionName, field, operator, val, onChange) {
    const query = _db.collection(collectionName).where(field, operator, val);
    const unsubCallback = query.onSnapshot(querySnapshot => {
-         const list = [];
+         const collection = [];
          querySnapshot.docChanges().forEach(res => {
-            const data = prepareTheDoc(res.doc);
-            list.push({ state: res.type, doc: data });
+            collection.push({ state: res.type, doc: prepareTheDoc(res.doc) });
          });
-         onChange({ success: true, data: list, pending: querySnapshot.metadata.hasPendingWrites});
+         onChange({ success: true, collection});
       },
       err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName} listener. [${err.message}]`}));
 
@@ -64,14 +66,10 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
 
 function getById(collectionName, docId) {
    return new Promise((resolve, reject) => {
-      const docRef = _db.collection(collectionName).doc(docId);
-      docRef.get()
+      _db.collection(collectionName).doc(docId)
+         .get()
          .then(docSpapshot => {
-            let data = null;
-            if(docSpapshot.exists) {
-               data = prepareTheDoc(docSpapshot);
-            }
-            resolve(data);
+            docSpapshot.exists ? resolve(prepareTheDoc(docSpapshot)) : resolve(data);
          })
          .catch(err => {
             reject({message: `Error occurred while getting data. Document name: ${collectionName}, doc-id: ${docId}. [${err.message}]`, error: err.toJsonString()});
@@ -79,16 +77,17 @@ function getById(collectionName, docId) {
    });
 }
 
+/*
+   After binding listen, onChange will be fired immediately.
+   Single document binder doesn't have a stete (type) porperty.
+   As of Oct 22, Node.js implementation of firesotre SDK doesn't have pendingWrite feature.
+*/
 function getByIdWithListener(collectionName, docId, onChange) {
    const doc = _db.collection(collectionName).doc(docId);
 
    const unsubCallback = doc.onSnapshot(docSnapshot => {
-         console.log('getByIdWithListener', docSnapshot, docSnapshot.docChanges, docSnapshot.data);
-         
-         const result = docSnapshot.docChanges();
-         const data = prepareTheDoc(result.doc);
-         
-         onChange({ success: true, data: data, state: result.state, pending: querySnapshot.metadata.hasPendingWrites});
+         const document = prepareTheDoc(docSnapshot);
+         onChange({ success: true, doc: document});
       },
       err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName}/${docId} listener. [${err.message}]`})
    );
@@ -111,8 +110,8 @@ function addDoc(collectionName, data) {
 
 function update(collectionName, docId, data) {
    return new Promise(async(resolve, reject) => {
-      const docRef = _db.collection(collectionName).doc(docId);
-      docRef.update(data)
+      _db.collection(collectionName).doc(docId)
+         .update(data)
          .then(() => resolve())
          .catch(error => reject({ message: `Error on updating a record in ${collectionName}, ID: ${docId}.`, error: error }));
    });

@@ -5,12 +5,6 @@ const io = require('socket.io')(http); //require socket.io module and pass the h
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const {firestoreService, DB} = require('./firestoreService');
 
-firestoreService.getCollection(DB.Collections.logs)
-   .then(data => log(data))
-   .catch(err => log(err));
-
-
-
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
