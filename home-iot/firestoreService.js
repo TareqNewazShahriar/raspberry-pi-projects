@@ -95,7 +95,7 @@ function getByIdWithListener(collectionName, docId, onChange) {
    return unsubCallback;
 }
 
-function addDoc(collectionName, data, docId) {
+function create(collectionName, data, docId) {
    return new Promise((resolve, reject) => {
       const docRef = docId ? _db.collection(collectionName).doc(docId) : _db.collection(collectionName).doc();
       docRef.set(data)
@@ -140,7 +140,7 @@ const firestoreService = {
    getCollectionWithListener,
    getById,
    getByIdWithListener,
-   addDoc,
+   create,
    update
 };
 

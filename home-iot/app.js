@@ -29,7 +29,6 @@ var _socket = null;
          log(data);
       }
    });
-      
 
    http.listen(_Port);
    log({message: `Node server started. Port ${_Port}.`});
@@ -134,23 +133,19 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 });
 
-function periodicTask() {
-   if(io.sockets.server.engine.clientsCount > 0) {
-      emitPeriodicData(_socket);
-   }
-   else {
-      executePythonScript('photoresistor_with_a2d.py', toNumber)
-         .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
-         .catch(data => _DebugLevel >= LogLevel.important ? log({message: 'Error while getting photoresistor data.', data}) : null);
-   }
+function periodicTask()
+{
+   executePythonScript('photoresistor_with_a2d.py', toNumber)
+      .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
+      .catch(data => _DebugLevel >= LogLevel.important ? log({message: 'Error while getting photoresistor data.', data}) : null);
 }
 
-function emitPeriodicData(socket)
+function emitPeriodicData()
 {
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
          if(_DebugLevel >= LogLevel.verbose) log({message: 'Promise.allSettled sattled', results})
-         
+
          let data = {
             thermistor: results[0].value || results[0].reason,
             photoresistor: results[1].value || results[1].reason,
@@ -169,11 +164,15 @@ function emitPeriodicData(socket)
             _values.bulbState;
          if(data.bulbState !== _values.bulbState) {
             _values.bulbState = data.bulbState;
-            firestoreService.update(DB.Collections.values, 'device_state', _values);
+
+            firestoreService.update(DB.Collections.values, 'device_state', _values)
+               .catch(errorData => firestoreService.create(DB.Collections.logs, errorData, new Date().toJSON()));
          }
 
-         if(_DebugLevel >= LogLevel.medium) log({message: `LogLevel:${_DebugLevel}`, data});
-         socket.emit('periodic-data', data);
+         if(_DebugLevel >= LogLevel.medium)
+            log({message: `LogLevel:${_DebugLevel}`, data});
+         
+         firestoreService.update(DB.Collections.values, 'client_data', data);
       })
       .catch(err => {
          if(_DebugLevel >= LogLevel.important)
@@ -268,7 +267,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 
 function log(logData) {
    console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.addDoc(DB.Collections.logs, logData, new Date().toJSON());
+   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
 }
 
 function toNumber(text) {
