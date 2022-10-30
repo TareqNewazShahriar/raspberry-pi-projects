@@ -95,10 +95,10 @@ function getByIdWithListener(collectionName, docId, onChange) {
    return unsubCallback;
 }
 
-function addDoc(collectionName, data) {
+function addDoc(collectionName, data, docId) {
    return new Promise((resolve, reject) => {
-      _db.collection(collectionName)
-         .add(data)
+      const docRef = docId ? _db.collection(collectionName).doc(docId) : _db.collection(collectionName).doc();
+      docRef.set(data)
          .then(result => {
             resolve(result.id);
          })

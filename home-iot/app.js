@@ -1,14 +1,14 @@
-const { exec, spawn } = require('child_process');
+const { exec } = require('child_process');
 const http = require('http').createServer(responseHandler);
 const fs = require('fs'); //require filesystem module
 const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
-const {firestoreService, DB} = require('./firestoreService');
+const { firestoreService, DB } = require('./firestoreService');
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const _DebugLevel = LogLevel.medium;
+const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
@@ -16,28 +16,27 @@ const _Port = 8080;
 var _Optocoupler_Pin = 16;
 const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
-const _socket = null;
+var _socket = null;
 
 
 (function init() {
    firestoreService.getByIdWithListener(DB.Collections.values, 'values', (data) => {
       if(data.success) {
          _values = data.doc;
-         log(data);
-
          periodicTask();
          setInterval(periodicTask, _SensorMonitorInterval);
       }
-      else
+      else {
          log(data);
+      }
    });
       
 
    http.listen(_Port);
-   log(`Node server started. Port ${_Port}.`);
+   log({message: `Node server started. Port ${_Port}.`});
    process.on('warning', e => console.warn(e.stack));
    process.on('SIGINT', () => {
-      log('Node server exiting.');
+      log({message: 'Node server exiting.'});
       process.exit();
    });
 })();
@@ -46,7 +45,7 @@ function responseHandler(req, res) {
    // read file index.html in public folder
    fs.readFile(__dirname + '/public/index.html', function(err, data) {
       if (err) { // file not found
-         log('Error occurred on getting index.html file.', err)
+         log({message: 'Error occurred on getting index.html file.', error: err});
          res.writeHead(404, { 'Content-Type': 'text/html' }); //display 404 on error
          return res.end("404 Not Found");
       }
@@ -59,7 +58,7 @@ function responseHandler(req, res) {
 
 // Register all pub-sub in socket
 io.sockets.on('connection', function (socket) { // WebSocket Connection
-   log('socket connection established.');
+   log({ message: 'socket connection established.'});
    
    _socket = socket;
 
@@ -94,7 +93,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
          fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
       }
       catch(err) {
-         log('Error while switching bulb pin.', err, _values, data);
+         log({ message: 'Error while switching bulb pin.', error: err, _values, data});
       }
 
       // broadcast to all connected sites about the change
@@ -108,30 +107,30 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
    });
 
    socket.on('terminate-app', function () {
-      log('terminate-app...');
+      log({ message: 'terminate-app...'});
       try {
-         log('Node server exiting!');
+         log({ message: 'Node server exiting!'});
          _localTunnelInstance ? _localTunnelInstance.close() : null;
          process.exit();
       }
       catch (err) {
          if(_DebugLevel >= LogLevel.important)
-            log('Error on terminating Node!', err.toJsonString());
+            log({ message: 'Error on terminating Node!', error: err.toJsonString()});
       }
    });
    
    socket.on('reboot', function () {
-      log('rebooting...');
+      log({ message: 'rebooting...'});
       exec('sudo reboot', (error, data) => {
             if(error && _DebugLevel >= LogLevel.important)
-               log({errorOnReboot: error, data});
+               log({ message: 'Error on reboot', error, data});
          });
    });
    socket.on('poweroff', function () {
-      log('turning off...');
+      log({ message: 'turning off...'});
       exec('sudo poweroff', (error, data) => {
          if(error && _DebugLevel >= LogLevel.important)
-            log({errorOnPoweroff: error, data});
+            log({ message: 'error on poweroff', error, data});
       });
    });
 });
@@ -143,7 +142,7 @@ function periodicTask() {
    else {
       executePythonScript('photoresistor_with_a2d.py', toNumber)
          .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
-         .catch(data => _DebugLevel >= LogLevel.important ? log(data) : null);
+         .catch(data => _DebugLevel >= LogLevel.important ? log({message: 'Error while getting photoresistor data.', data}) : null);
    }
 }
 
@@ -151,7 +150,7 @@ function emitPeriodicData(socket)
 {
    Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
       .then(results => {
-         if(_DebugLevel >= LogLevel.verbose) log('Promise.allSettled sattled', results)
+         if(_DebugLevel >= LogLevel.verbose) log({message: 'Promise.allSettled sattled', results})
          
          let data = {
             thermistor: results[0].value || results[0].reason,
@@ -174,12 +173,12 @@ function emitPeriodicData(socket)
             fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
          }
 
-         if(_DebugLevel >= LogLevel.medium) log(data);
+         if(_DebugLevel >= LogLevel.medium) log({message: `LogLevel:${_DebugLevel}`, data});
          socket.emit('periodic-data', data);
       })
       .catch(err => {
          if(_DebugLevel >= LogLevel.important)
-            log('emitSensorsData catch', err.toJsonString('emitSensorsData > catch'));
+            log({ message: 'emitSensorsData catch', error: err.toJsonString('emitSensorsData > catch')});
          
          // No need to emit the event; because the data fields will be in a unstable state.
       });
@@ -187,19 +186,19 @@ function emitPeriodicData(socket)
 
 function executePythonScript(codeFileName, parseCallback)
 {
-   if(_DebugLevel >= LogLevel.verbose) log({ msg:'executePythonScript entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+   if(_DebugLevel >= LogLevel.verbose) log({ message:'executePythonScript entered', path: `${__dirname}/pythonScript/${codeFileName}` })
 
    return new Promise((resolve, reject) => {
       exec(`python ${__dirname}/pythonScript/${codeFileName}`, (error, data) => {
-            if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> in promise'});
+            if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScript -> in promise'});
 
             if(error) {
-               if(_DebugLevel >= LogLevel.important) log({msg: 'executePythonScript > error', err});
+               if(_DebugLevel >= LogLevel.important) log({message: 'executePythonScript > error', error: err});
                
                reject({error: err.toJsonString('execute-python > on error event'), succes: false});
             }
             else {
-               if(_DebugLevel >= LogLevel.verbose) log({msg: 'executePythonScript -> success', data});
+               if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScript -> success', data});
          
                let result = {}; 
                try {
@@ -218,11 +217,11 @@ function executePythonScript(codeFileName, parseCallback)
 }
 
 function getPiHealthData() {
-   if(_DebugLevel >= LogLevel.verbose) log('getPiHealthData() entered')
+   if(_DebugLevel >= LogLevel.verbose) log({ message: 'getPiHealthData() entered'})
    return new Promise((resolve, reject) => {
       exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
          (error, data) => {
-            if(_DebugLevel >= LogLevel.verbose) log({msg: 'getPiHealthData() > exec > callback', error})
+            if(_DebugLevel >= LogLevel.verbose) log({message: 'getPiHealthData() > exec > callback', error})
             if(error) {
                console.error({errorOnPiHealthData: error})
                reject({error: error.toJsonString('piHealthData'), succes: false})
@@ -244,7 +243,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
       {
          bulbState  = ON;
          if(_DebugLevel >= LogLevel.important)
-            log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
@@ -253,7 +252,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
       {
          bulbState  = OFF;
          if(_DebugLevel >= LogLevel.important)
-            log({msg: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
    }
 
@@ -264,12 +263,13 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    // whatever the request state is, return the actual state of the bulb.
    let val = pin.readSync();
    if(_DebugLevel >= LogLevel.important && val !== bulbState)
-      log({msg: 'actual bulb state', requested: bulbState, actual: val});
+      log({message: 'Bulb state', requested: bulbState, actual: val});
    return val;
 }
 
-function log(...params) {
-   console.log(`${new Date().toLocaleString()}\n`, params);
+function log(logData) {
+   console.log(`${new Date().toLocaleString()}\n`, logData);
+   firestoreService.addDoc(DB.Collections.logs, logData);
 }
 
 function toNumber(text) {
