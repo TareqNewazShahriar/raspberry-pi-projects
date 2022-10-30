@@ -14,19 +14,27 @@ const ON = 1;
 const OFF = Number(!ON);
 const _Port = 8080;
 var _Optocoupler_Pin = 16;
-var _values = {};
-var _socket = null;
+var _values = { bulbControlMode: 1, bulbState: 0 };
 
 
 (function init() {
-   firestoreService.getByIdWithListener(DB.Collections.values, 'device_state', (data) => {
+   firestoreService.getByIdWithListener(DB.Collections.values, 'device-state', (data) => {
       if(data.success) {
          _values = data.doc;
          periodicTask();
-         setInterval(periodicTask, _SensorMonitorInterval);
       }
       else {
          log(data);
+      }
+   });
+
+   setInterval(periodicTask, _SensorMonitorInterval);
+
+   firestoreService.getByIdWithListener(DB.Collections.values, 'client-data-request__from-client', (data) => {
+      if(data.success) {
+         getClientData()
+            .then(clientData => firestoreService.update(DB.Collections.values, 'client-data', clientData))
+            .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
       }
    });
 
@@ -58,8 +66,6 @@ function responseHandler(req, res) {
 io.sockets.on('connection', function (socket) { // WebSocket Connection
    log({ message: 'socket connection established.'});
    
-   _socket = socket;
-
    fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
 
    // Get bulb control mode from client
@@ -76,7 +82,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
             })
             .catch(errData => { /* log */})
             .finally(() => {
-               firestoreService.update(DB.Collections.values, 'device_state', _values);
+               firestoreService.update(DB.Collections.values, 'device-state', _values);
             });
       }
    });
@@ -88,7 +94,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       
       try {
          _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-         firestoreService.update(DB.Collections.values, 'device_state', _values);
+         firestoreService.update(DB.Collections.values, 'device-state', _values);
       }
       catch(err) {
          log({ message: 'Error while switching bulb pin.', error: err, _values, data});
@@ -140,46 +146,45 @@ function periodicTask()
       .catch(data => _DebugLevel >= LogLevel.important ? log({message: 'Error while getting photoresistor data.', data}) : null);
 }
 
-function emitPeriodicData()
+function getClientData()
 {
-   Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
-      .then(results => {
-         if(_DebugLevel >= LogLevel.verbose) log({message: 'Promise.allSettled sattled', results})
+   return new Promise((resolve, reject) => {
+      Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
+         .then(results => {
+            if(_DebugLevel >= LogLevel.verbose) log({message: 'Promise.allSettled sattled', results})
 
-         let data = {
-            thermistor: results[0].value || results[0].reason,
-            photoresistor: results[1].value || results[1].reason,
-            piHealthData: results[2].value || results[2].reason,
-            photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
-            bulbControlMode: _values.bulbControlMode,
-            bulbState: null,
-            connectionCount: io.sockets.server.engine.clientsCount,
-            time: new Date().toLocaleString(),
-            from: 'server',
-            to: 'connectee'
-         }
-         
-         data.bulbState = data.photoresistor.success?
-            controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState) :
-            _values.bulbState;
-         if(data.bulbState !== _values.bulbState) {
-            _values.bulbState = data.bulbState;
+            let data = {
+               thermistor: results[0].value || results[0].reason,
+               photoresistor: results[1].value || results[1].reason,
+               piHealthData: results[2].value || results[2].reason,
+               photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
+               bulbControlMode: _values.bulbControlMode,
+               bulbState: null,
+               connectionCount: io.sockets.server.engine.clientsCount,
+               time: new Date().toLocaleString(),
+               from: 'server',
+               to: 'connectee'
+            }
+            
+            data.bulbState = data.photoresistor.success?
+               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState) :
+               _values.bulbState;
+            if(data.bulbState !== _values.bulbState) {
+               _values.bulbState = data.bulbState;
 
-            firestoreService.update(DB.Collections.values, 'device_state', _values)
-               .catch(errorData => firestoreService.create(DB.Collections.logs, errorData, new Date().toJSON()));
-         }
+               firestoreService.update(DB.Collections.values, 'device-state', _values)
+                  .catch(errorData => firestoreService.create(DB.Collections.logs, errorData, new Date().toJSON()));
+            }
 
-         if(_DebugLevel >= LogLevel.medium)
-            log({message: `LogLevel:${_DebugLevel}`, data});
-         
-         firestoreService.update(DB.Collections.values, 'client_data', data);
-      })
-      .catch(err => {
-         if(_DebugLevel >= LogLevel.important)
-            log({ message: 'emitSensorsData catch', error: err.toJsonString('emitSensorsData > catch')});
-         
-         // No need to emit the event; because the data fields will be in a unstable state.
-      });
+            if(_DebugLevel >= LogLevel.medium)
+               log({message: `LogLevel:${_DebugLevel}`, data});
+
+            resolve(data);
+         })
+         .catch(err => {
+            reject({ message: 'emitSensorsData catch', error: err.toJsonString('emitSensorsData > catch')});
+         });
+   });
 }
 
 function executePythonScript(codeFileName, parseCallback)
