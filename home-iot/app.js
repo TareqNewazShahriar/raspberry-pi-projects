@@ -14,7 +14,6 @@ const ON = 1;
 const OFF = Number(!ON);
 const _Port = 8080;
 var _Optocoupler_Pin = 16;
-const _ValuesJsonPath = `${__dirname}/data/values.json`;
 var _values = {};
 var _socket = null;
 
@@ -78,7 +77,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
             })
             .catch(errData => { /* log */})
             .finally(() => {
-               fs.writeFile(_ValuesJsonPath, JSON.stringify(_values), () => {});
+               firestoreService.update(DB.Collections.values, 'values', _values);
             });
       }
    });
@@ -90,7 +89,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       
       try {
          _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-         fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
+         firestoreService.update(DB.Collections.values, 'values', _values);
       }
       catch(err) {
          log({ message: 'Error while switching bulb pin.', error: err, _values, data});
@@ -170,7 +169,7 @@ function emitPeriodicData(socket)
             _values.bulbState;
          if(data.bulbState !== _values.bulbState) {
             _values.bulbState = data.bulbState;
-            fs.writeFileSync(_ValuesJsonPath, JSON.stringify(_values));
+            firestoreService.update(DB.Collections.values, 'values', _values);
          }
 
          if(_DebugLevel >= LogLevel.medium) log({message: `LogLevel:${_DebugLevel}`, data});
@@ -275,7 +274,7 @@ function log(logData) {
 function toNumber(text) {
    let n = parseFloat(text);
    if(Number.isNaN(n))
-      throw new Error('Not a number')
+      throw new Error('Not a number');
    else
       return n;
 }
