@@ -19,7 +19,7 @@ var _socket = null;
 
 
 (function init() {
-   firestoreService.getByIdWithListener(DB.Collections.values, 'values', (data) => {
+   firestoreService.getByIdWithListener(DB.Collections.values, 'device_state', (data) => {
       if(data.success) {
          _values = data.doc;
          periodicTask();
@@ -77,7 +77,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
             })
             .catch(errData => { /* log */})
             .finally(() => {
-               firestoreService.update(DB.Collections.values, 'values', _values);
+               firestoreService.update(DB.Collections.values, 'device_state', _values);
             });
       }
    });
@@ -89,7 +89,7 @@ io.sockets.on('connection', function (socket) { // WebSocket Connection
       
       try {
          _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-         firestoreService.update(DB.Collections.values, 'values', _values);
+         firestoreService.update(DB.Collections.values, 'device_state', _values);
       }
       catch(err) {
          log({ message: 'Error while switching bulb pin.', error: err, _values, data});
@@ -169,7 +169,7 @@ function emitPeriodicData(socket)
             _values.bulbState;
          if(data.bulbState !== _values.bulbState) {
             _values.bulbState = data.bulbState;
-            firestoreService.update(DB.Collections.values, 'values', _values);
+            firestoreService.update(DB.Collections.values, 'device_state', _values);
          }
 
          if(_DebugLevel >= LogLevel.medium) log({message: `LogLevel:${_DebugLevel}`, data});
