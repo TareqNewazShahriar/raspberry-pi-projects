@@ -269,7 +269,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 
 function log(logData) {
    console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.addDoc(DB.Collections.logs, logData);
+   firestoreService.addDoc(DB.Collections.logs, logData, new Date().toJSON());
 }
 
 function toNumber(text) {
