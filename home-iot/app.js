@@ -9,13 +9,13 @@ const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
-const _Port = 8080;
 var _Optocoupler_Pin = 16;
 var _values = { bulbControlMode: 1, bulbState: 0 };
 
 (function init() {
    firestoreService.getById(DB.Collections.values, 'device-state')
       .then(data => {
+         console.log('--', data)
          _values = data.doc;
          periodicTask();
       })
@@ -39,22 +39,28 @@ var _values = { bulbControlMode: 1, bulbState: 0 };
    });
 })();
 
-// Get bulb control mode
-socket.on('bulb-control-mode', function (data) {
-   _values.bulbControlMode = data.value;
-   
-   // If sensor mode activated, check the sensor value and take action
-   if(_values.bulbControlMode === BulbControlModes.sensor) {
-      executePythonScript('photoresistor_with_a2d.py', toNumber)
-         .then(resultData => {
-            _values.bulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
-            // send to all connected clients
-            socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'all' });
-         })
-         .catch(errData => { /* log */})
-         .finally(() => {
-            firestoreService.update(DB.Collections.values, 'device-state', _values);
-         });
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-mode__from-client', true, function (data) {
+   if(data.success) {
+      _values.bulbControlMode = data.value;
+      
+      // If sensor mode activated, check the sensor value and take action
+      if(_values.bulbControlMode === BulbControlModes.sensor) {
+         executePythonScript('photoresistor_with_a2d.py', toNumber)
+            .then(resultData => {
+               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
+               
+               if(newBulbState !== _values.bulbState) {
+                  _values.bulbState = newBulbState;
+                  firestoreService.update(DB.Collections.values, 'device-state', _values).catch(log);
+                  firestoreService.update(DB.Collections.values, 'bulb-state--from-machine', { value: _values.bulbState }).catch(log);
+               }
+               firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-machine', { value: _values.bulbControlMode }).catch(log);
+            })
+            .catch(log);
+      }
+   }
+   else {
+      log(data);
    }
 });
 
@@ -76,44 +82,23 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__f
       log({ message: 'Error while switching bulb pin.', error: err, _values, data});
    }
 
-   // broadcast to all connected sites about the change
-   socket.broadcast.emit('bulb-status__from-server', { from: 'server', value: _values.bulbState, to: 'braodcast' });
+   firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState }).catch(log);
 });
 
-socket.on('pi-stat', function () {
-   getPiHealthData()
-      .then(data => socket.emit('pi-stat', { from: 'server', piHealthData: data, to: 'connectee' }))
-      .catch(data => socket.emit('pi-state', { from: 'server', piHealthData: data, to: 'connectee' }));
-});
-
-firestoreService.attachListenerOnDocument(DB.Collections.values, 'terminate_app__client_request', true, (data) => {
-   if(data.success) {
-      try {
-         log({ message: 'terminate-app...'});
-         process.exit();
-      }
-      catch (err) {
-         if(_DebugLevel >= LogLevel.important)
-            log({ message: 'Error on terminating Node!', error: err.toJsonString()});
-      }
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'terminate-app__from-client', true, (data) => {
+   try {
+      log({ message: 'terminate-app...'});
+      process.exit();
    }
-   else {
-      log(data);
+   catch (err) {
+      log({ message: 'Error on terminating Node!', error: err.toJsonString()});
    }
 });
 
-socket.on('reboot', function () {
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-client', true, data => {
    log({ message: 'rebooting...'});
    exec('sudo reboot', (error, data) => {
-         if(error && _DebugLevel >= LogLevel.important)
-            log({ message: 'Error on reboot', error, data});
-      });
-});
-socket.on('poweroff', function () {
-   log({ message: 'turning off...'});
-   exec('sudo poweroff', (error, data) => {
-      if(error && _DebugLevel >= LogLevel.important)
-         log({ message: 'error on poweroff', error, data});
+      log({ message: 'Error on reboot', error, data});
    });
 });
 
@@ -121,7 +106,7 @@ function periodicTask()
 {
    executePythonScript('photoresistor_with_a2d.py', toNumber)
       .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
-      .catch(data => _DebugLevel >= LogLevel.important ? log({message: 'Error while getting photoresistor data.', data}) : null);
+      .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
 function getClientData()

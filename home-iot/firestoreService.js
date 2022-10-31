@@ -89,6 +89,7 @@ function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
       docSnapshot => {
          if(skipFirst === true) {
             skipFirst = undefined;
+            return;
          }
 
          const document = prepareTheDoc(docSnapshot);
