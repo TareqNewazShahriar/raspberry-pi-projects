@@ -82,10 +82,15 @@ function getById(collectionName, docId) {
    Single document binder doesn't have a stete (type) porperty.
    As of Oct 22, Node.js implementation of firesotre SDK doesn't have pendingWrite feature.
 */
-function getByIdWithListener(collectionName, docId, onChange) {
+function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
    const doc = _db.collection(collectionName).doc(docId);
 
-   const unsubCallback = doc.onSnapshot(docSnapshot => {
+   const unsubCallback = doc.onSnapshot(
+      docSnapshot => {
+         if(skipFirst === true) {
+            skipFirst = undefined;
+         }
+
          const document = prepareTheDoc(docSnapshot);
          onChange({ success: true, doc: document});
       },
@@ -139,7 +144,7 @@ const firestoreService = {
    getCollection,
    getCollectionWithListener,
    getById,
-   getByIdWithListener,
+   attachListenerOnDocument,
    create,
    update
 };

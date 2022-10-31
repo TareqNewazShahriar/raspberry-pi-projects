@@ -1,7 +1,4 @@
 const { exec } = require('child_process');
-const http = require('http').createServer(responseHandler);
-const fs = require('fs'); //require filesystem module
-const io = require('socket.io')(http); //require socket.io module and pass the http object (server)
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
 
@@ -16,21 +13,17 @@ const _Port = 8080;
 var _Optocoupler_Pin = 16;
 var _values = { bulbControlMode: 1, bulbState: 0 };
 
-
 (function init() {
-   firestoreService.getByIdWithListener(DB.Collections.values, 'device-state', (data) => {
-      if(data.success) {
+   firestoreService.getById(DB.Collections.values, 'device-state')
+      .then(data => {
          _values = data.doc;
          periodicTask();
-      }
-      else {
-         log(data);
-      }
-   });
+      })
+      .catch(data => log(data));
 
    setInterval(periodicTask, _SensorMonitorInterval);
 
-   firestoreService.getByIdWithListener(DB.Collections.values, 'client-data-request__from-client', (data) => {
+   firestoreService.attachListenerOnDocument(DB.Collections.values, 'client-data-request__from-client', true, (data) => {
       if(data.success) {
          getClientData()
             .then(clientData => firestoreService.update(DB.Collections.values, 'client-data', clientData))
@@ -38,8 +31,7 @@ var _values = { bulbControlMode: 1, bulbState: 0 };
       }
    });
 
-   http.listen(_Port);
-   log({message: `Node server started. Port ${_Port}.`});
+   log({message: `Node server started.`});
    process.on('warning', e => console.warn(e.stack));
    process.on('SIGINT', () => {
       log({message: 'Node server exiting.'});
@@ -47,95 +39,81 @@ var _values = { bulbControlMode: 1, bulbState: 0 };
    });
 })();
 
-function responseHandler(req, res) {
-   // read file index.html in public folder
-   fs.readFile(__dirname + '/public/index.html', function(err, data) {
-      if (err) { // file not found
-         log({message: 'Error occurred on getting index.html file.', error: err});
-         res.writeHead(404, { 'Content-Type': 'text/html' }); //display 404 on error
-         return res.end("404 Not Found");
-      }
-
-      res.writeHead(200, { 'Content-Type': 'text/html' }); //write HTML
-      res.write(data); // Write html string
-      res.end();
-   });
-}
-
-// Register all pub-sub in socket
-io.sockets.on('connection', function (socket) { // WebSocket Connection
-   log({ message: 'socket connection established.'});
+// Get bulb control mode
+socket.on('bulb-control-mode', function (data) {
+   _values.bulbControlMode = data.value;
    
-   fs.mkdir(__dirname + '/output', () => {/*callback is required*/});
+   // If sensor mode activated, check the sensor value and take action
+   if(_values.bulbControlMode === BulbControlModes.sensor) {
+      executePythonScript('photoresistor_with_a2d.py', toNumber)
+         .then(resultData => {
+            _values.bulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
+            // send to all connected clients
+            socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'all' });
+         })
+         .catch(errData => { /* log */})
+         .finally(() => {
+            firestoreService.update(DB.Collections.values, 'device-state', _values);
+         });
+   }
+});
 
-   // Get bulb control mode from client
-   socket.on('bulb-control-mode', function (data) {
-      _values.bulbControlMode = data.value;
-      
-      // If sensor mode activated, check the sensor value and take action
-      if(_values.bulbControlMode === BulbControlModes.sensor) {
-         executePythonScript('photoresistor_with_a2d.py', toNumber)
-            .then(resultData => {
-               _values.bulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
-               // send to all connected clients
-               socket.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'all' });
-            })
-            .catch(errData => { /* log */})
-            .finally(() => {
-               firestoreService.update(DB.Collections.values, 'device-state', _values);
-            });
-      }
-   });
+// Turn on/off the bulb from client
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__from-client', true, (data) => {
+   if(!data.success) {
+      log(data);
+      return;
+   }
 
-   // Turn on/off the bulb from client
-   socket.on('bulb-status--from-client', function (data) {
-      if(_values.bulbControlMode !== BulbControlModes.manual)
-         return;
-      
+   if(_values.bulbControlMode !== BulbControlModes.manual)
+      return;
+   
+   try {
+      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
+      firestoreService.update(DB.Collections.values, 'device-state', _values);
+   }
+   catch(err) {
+      log({ message: 'Error while switching bulb pin.', error: err, _values, data});
+   }
+
+   // broadcast to all connected sites about the change
+   socket.broadcast.emit('bulb-status__from-server', { from: 'server', value: _values.bulbState, to: 'braodcast' });
+});
+
+socket.on('pi-stat', function () {
+   getPiHealthData()
+      .then(data => socket.emit('pi-stat', { from: 'server', piHealthData: data, to: 'connectee' }))
+      .catch(data => socket.emit('pi-state', { from: 'server', piHealthData: data, to: 'connectee' }));
+});
+
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'terminate_app__client_request', true, (data) => {
+   if(data.success) {
       try {
-         _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-         firestoreService.update(DB.Collections.values, 'device-state', _values);
-      }
-      catch(err) {
-         log({ message: 'Error while switching bulb pin.', error: err, _values, data});
-      }
-
-      // broadcast to all connected sites about the change
-      socket.broadcast.emit('bulb-status--from-server', { from: 'server', value: _values.bulbState, to: 'braodcast' });
-   });
-
-   socket.on('pi-stat', function () {
-      getPiHealthData()
-         .then(data => socket.emit('pi-stat', { from: 'server', piHealthData: data, to: 'connectee' }))
-         .catch(data => socket.emit('pi-state', { from: 'server', piHealthData: data, to: 'connectee' }));
-   });
-
-   socket.on('terminate-app', function () {
-      log({ message: 'terminate-app...'});
-      try {
-         log({ message: 'Node server exiting!'});
-         _localTunnelInstance ? _localTunnelInstance.close() : null;
+         log({ message: 'terminate-app...'});
          process.exit();
       }
       catch (err) {
          if(_DebugLevel >= LogLevel.important)
             log({ message: 'Error on terminating Node!', error: err.toJsonString()});
       }
-   });
-   
-   socket.on('reboot', function () {
-      log({ message: 'rebooting...'});
-      exec('sudo reboot', (error, data) => {
-            if(error && _DebugLevel >= LogLevel.important)
-               log({ message: 'Error on reboot', error, data});
-         });
-   });
-   socket.on('poweroff', function () {
-      log({ message: 'turning off...'});
-      exec('sudo poweroff', (error, data) => {
+   }
+   else {
+      log(data);
+   }
+});
+
+socket.on('reboot', function () {
+   log({ message: 'rebooting...'});
+   exec('sudo reboot', (error, data) => {
          if(error && _DebugLevel >= LogLevel.important)
-            log({ message: 'error on poweroff', error, data});
+            log({ message: 'Error on reboot', error, data});
       });
+});
+socket.on('poweroff', function () {
+   log({ message: 'turning off...'});
+   exec('sudo poweroff', (error, data) => {
+      if(error && _DebugLevel >= LogLevel.important)
+         log({ message: 'error on poweroff', error, data});
    });
 });
 
@@ -160,7 +138,6 @@ function getClientData()
                photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
                bulbControlMode: _values.bulbControlMode,
                bulbState: null,
-               connectionCount: io.sockets.server.engine.clientsCount,
                time: new Date().toLocaleString(),
                from: 'server',
                to: 'connectee'
@@ -173,7 +150,7 @@ function getClientData()
                _values.bulbState = data.bulbState;
 
                firestoreService.update(DB.Collections.values, 'device-state', _values)
-                  .catch(errorData => firestoreService.create(DB.Collections.logs, errorData, new Date().toJSON()));
+                  .catch(errorData => log(errorData));
             }
 
             if(_DebugLevel >= LogLevel.medium)
