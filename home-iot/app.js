@@ -15,11 +15,10 @@ var _values = { bulbControlMode: 1, bulbState: 0 };
 (function init() {
    firestoreService.getById(DB.Collections.values, 'device-state')
       .then(data => {
-         console.log('--', data)
-         _values = data.doc;
+         _values = data;
          periodicTask();
       })
-      .catch(data => log(data));
+      .catch(log);
 
    setInterval(periodicTask, _SensorMonitorInterval);
 
@@ -105,7 +104,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
 function periodicTask()
 {
    executePythonScript('photoresistor_with_a2d.py', toNumber)
-      .then(data => controlBulb(data.value, _values.bulbControlMode, _values.bulbState))
+      .then(data => { controlBulb(data.value, _values.bulbControlMode, _values.bulbState); })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
