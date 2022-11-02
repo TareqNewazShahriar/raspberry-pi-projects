@@ -5,7 +5,7 @@
 * Plug the card reader with the memory card to the computer.
 * Run the Imager. https://www.raspberrypi.com/software/
   > NOTE  
-  > Don't mistakenly connect Raspberry PI with memory card and try to install the OS (because... I forgotten and I was mistakenly doing it).
+  > Don't mistakenly connect Raspberry PI with memory card and try to install the OS (because... I forgotten and was mistakenly doing it).
 
   > **How to choose the correct version of OS**
   > - If you use the OS headless (i.e. without monitor), then install the *lite* version. Otherwise Recommended version is good to go.
