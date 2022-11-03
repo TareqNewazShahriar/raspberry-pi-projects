@@ -84,16 +84,6 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__f
    firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState }).catch(log);
 });
 
-firestoreService.attachListenerOnDocument(DB.Collections.values, 'terminate-app__from-client', true, (data) => {
-   try {
-      log({ message: 'terminate-app...'});
-      process.exit();
-   }
-   catch (err) {
-      log({ message: 'Error on terminating Node!', error: err.toJsonString()});
-   }
-});
-
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-client', true, data => {
    log({ message: 'rebooting...'});
    exec('sudo reboot', (error, data) => {
@@ -122,9 +112,7 @@ function getClientData()
                photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
                bulbControlMode: _values.bulbControlMode,
                bulbState: undefined,
-               time: new Date().toLocaleString(),
-               from: 'server',
-               to: 'connectee'
+               time: new Date() // TODO: make utc using offset gmt
             }
             
             data.bulbState = data.photoresistor.success?
@@ -234,7 +222,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 
 function log(logData) {
    console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.create(DB.Collections.logs, logData, new Date().toUTCString());
+   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
 }
 
 function toNumber(text) {
