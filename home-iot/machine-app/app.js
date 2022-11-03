@@ -13,7 +13,7 @@ var _Optocoupler_Pin = 16;
 var _values = { bulbControlMode: 1, bulbState: 0 };
 
 (function init() {
-   firestoreService.getById(DB.Collections.values, 'device-state')
+   firestoreService.getById(DB.Collections.values, 'user-settings')
       .then(data => {
          _values = data;
          periodicTask();
@@ -22,10 +22,10 @@ var _values = { bulbControlMode: 1, bulbState: 0 };
 
    setInterval(periodicTask, _SensorMonitorInterval);
 
-   firestoreService.attachListenerOnDocument(DB.Collections.values, 'client-data-request__from-client', true, (data) => {
+   firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request__from-client', true, (data) => {
       if(data.success) {
          getClientData()
-            .then(clientData => firestoreService.update(DB.Collections.values, 'client-data', clientData))
+            .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
             .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
       }
    });
@@ -50,7 +50,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
                
                if(newBulbState !== _values.bulbState) {
                   _values.bulbState = newBulbState;
-                  firestoreService.update(DB.Collections.values, 'device-state', _values).catch(log);
+                  firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
                   firestoreService.update(DB.Collections.values, 'bulb-state--from-machine', { value: _values.bulbState }).catch(log);
                }
                firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-machine', { value: _values.bulbControlMode }).catch(log);
@@ -75,7 +75,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__f
    
    try {
       _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
-      firestoreService.update(DB.Collections.values, 'device-state', _values);
+      firestoreService.update(DB.Collections.values, 'user-settings', _values);
    }
    catch(err) {
       log({ message: 'Error while switching bulb pin.', error: err, _values, data});
@@ -133,7 +133,7 @@ function getClientData()
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
 
-               firestoreService.update(DB.Collections.values, 'device-state', _values)
+               firestoreService.update(DB.Collections.values, 'user-settings', _values)
                   .catch(errorData => log(errorData));
             }
 

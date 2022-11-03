@@ -125,6 +125,9 @@ function update(collectionName, docId, data) {
 
 function prepareTheDoc(doc) {
    let document = doc.data();
+   if(!document)
+      return null;
+   
    document.id = doc.id;
    document._readTime = doc._readTime.toDate();
    document._createTime = doc._createTime.toDate();
@@ -136,7 +139,6 @@ function prepareTheDoc(doc) {
          document[key] = document[key].toDate();
       }
    }
-
 
    return document;
 }
