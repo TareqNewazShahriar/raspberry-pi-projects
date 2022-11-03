@@ -10,7 +10,7 @@ const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 var _Optocoupler_Pin = 16;
-var _values = { bulbControlMode: 1, bulbState: false };
+var _values = { bulbControlMode: 1, bulbState: OFF };
 
 (function init() {
    firestoreService.getById(DB.Collections.values, 'user-settings')
@@ -202,19 +202,19 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    if(bulbControlMode === BulbControlModes.sensor) {
       const hour = new Date().getHours();
       // Set ON
-      if(bulbState == OFF &&
+      if(bulbState === OFF &&
          (hour.between(17, 23) /*evening*/ || roomLightValue >= PhotoresistorValueStatuses.LightDark))
       {
-         bulbState = Boolean(ON);
+         bulbState = ON;
          if(_DebugLevel >= LogLevel.important)
             log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
-      else if(bulbState == ON && 
+      else if(bulbState === ON && 
          (hour.between(1, 6) /*midnight*/ || roomLightValue < PhotoresistorValueStatuses.LightDark))
       {
-         bulbState = Boolean(OFF);
+         bulbState = OFF;
          if(_DebugLevel >= LogLevel.important)
             log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
       }
@@ -228,6 +228,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    let val = pin.readSync();
    if(_DebugLevel >= LogLevel.important && val != bulbState)
       log({message: 'Bulb state', requested: bulbState, actual: val});
+
    return val;
 }
 
