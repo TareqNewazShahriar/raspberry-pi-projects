@@ -22,7 +22,7 @@ var _values = { bulbControlMode: 1, bulbState: false };
 
    setInterval(periodicTask, _SensorMonitorInterval);
 
-   firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request__from-client', true, (data) => {
+   firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
       if(data.success) {
          getClientData()
             .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
