@@ -12,31 +12,27 @@ const OFF = Number(!ON);
 var _Optocoupler_Pin = 16;
 var _values = { bulbControlMode: 1, bulbState: OFF };
 
-(function init() {
-   firestoreService.getById(DB.Collections.values, 'user-settings')
-      .then(data => {
-         _values = data;
-         periodicTask();
-      })
-      .catch(log);
+log({message: `Node app started.`});
+process.on('warning', e => console.warn(e.stack));
+process.on('SIGINT', () => {
+   log({message: 'Node app exiting.'});
+   process.exit();
+});
 
-   setInterval(periodicTask, _SensorMonitorInterval);
+firestoreService.getById(DB.Collections.values, 'user-settings')
+   .then(data => {
+      _values = data;
+      monitorEnvironment();
+   })
+   .catch(log);
 
-   firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
-      if(data.success) {
-         getClientData()
-            .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
-            .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
-      }
-   });
-
-   log({message: `Node app started.`});
-   process.on('warning', e => console.warn(e.stack));
-   process.on('SIGINT', () => {
-      log({message: 'Node app exiting.'});
-      process.exit();
-   });
-})();
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
+   if(data.success) {
+      getClientData()
+         .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
+         .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
+   }
+});
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-mode__from-client', true, function (data) {
    if(data.success) {
@@ -91,7 +87,9 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
    });
 });
 
-function periodicTask()
+setInterval(monitorEnvironment, _SensorMonitorInterval);
+
+function monitorEnvironment()
 {
    executePythonScript('photoresistor_with_a2d.py', toNumber)
       .then(data => { controlBulb(data.value, _values.bulbControlMode, _values.bulbState); })
@@ -112,7 +110,9 @@ function getClientData()
                photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
                bulbControlMode: _values.bulbControlMode,
                bulbState: undefined,
-               time: new Date() // TODO: make utc using offset gmt
+               time: new Date(), // TODO: make utc using offset gmt
+               node_pid: process.pid,
+               node_parent_pid: process.ppid
             }
             
             data.bulbState = data.photoresistor.success?
@@ -221,7 +221,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 }
 
 function log(logData) {
-   logData.node_process_ids = { pid: process.pid, parent_pid: process.ppid };
+   logData.node_pid = process.pid;
+   logData.node_parent_pid = process.ppid;
    console.log(`${new Date().toLocaleString()}\n`, logData);
    firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
 }

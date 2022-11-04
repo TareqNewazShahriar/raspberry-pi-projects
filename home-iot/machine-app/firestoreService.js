@@ -85,20 +85,17 @@ function getById(collectionName, docId) {
 function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
    const doc = _db.collection(collectionName).doc(docId);
 
-   const unsubCallback = doc.onSnapshot(
-      docSnapshot => {
-         if(skipFirst === true) {
+    const unsub = doc.onSnapshot(docSnapshot => {
+      if(skipFirst === true) {
             skipFirst = undefined;
             return;
-         }
+      }
+      const document = prepareTheDoc(docSnapshot);
+      onChange({ success: true, doc: document});
+   },
+   err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName}/${docId} listener. [${err.message}]`}));
 
-         const document = prepareTheDoc(docSnapshot);
-         onChange({ success: true, doc: document});
-      },
-      err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName}/${docId} listener. [${err.message}]`})
-   );
-
-   return unsubCallback;
+   return unsub;
 }
 
 function create(collectionName, data, docId) {
