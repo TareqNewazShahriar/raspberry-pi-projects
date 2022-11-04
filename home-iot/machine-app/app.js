@@ -1,11 +1,13 @@
 const { exec } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
+const http = require('http');
 
+const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const _DebugLevel = LogLevel.important;
+const _DebugLevel = LogLevel.medium;
 const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
@@ -18,6 +20,14 @@ process.on('SIGINT', () => {
    log({message: 'Node app exiting.'});
    process.exit();
 });
+
+//Start a server
+http.createServer(function (req, res) {
+   res.write('Hello World!'); //write a response to the client
+   res.end(); //end the response
+ }).listen(8080);
+ log({message: `Node server started. Port ${_port}`});
+
 
 firestoreService.getById(DB.Collections.values, 'user-settings')
    .then(data => {
@@ -42,7 +52,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          executePythonScript('photoresistor_with_a2d.py', toNumber)
             .then(resultData => {
-               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState);
+               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState, 'bulb-control-mode__from-client');
                
                if(newBulbState !== _values.bulbState) {
                   _values.bulbState = newBulbState;
@@ -70,7 +80,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__f
       return;
    
    try {
-      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value);
+      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value, 'bulb-status__from-client');
       firestoreService.update(DB.Collections.values, 'user-settings', _values);
    }
    catch(err) {
@@ -92,7 +102,7 @@ setInterval(monitorEnvironment, _SensorMonitorInterval);
 function monitorEnvironment()
 {
    executePythonScript('photoresistor_with_a2d.py', toNumber)
-      .then(data => { controlBulb(data.value, _values.bulbControlMode, _values.bulbState); })
+      .then(data => { controlBulb(data.value, _values.bulbControlMode, _values.bulbState, 'monitoring task'); })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
@@ -116,7 +126,7 @@ function getClientData()
             }
             
             data.bulbState = data.photoresistor.success?
-               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState) :
+               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState, 'getClientData') :
                _values.bulbState;
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
@@ -125,7 +135,7 @@ function getClientData()
                   .catch(errorData => log(errorData));
             }
 
-            if(_DebugLevel >= LogLevel.medium)
+            if(_DebugLevel >= LogLevel.verbose)
                log({message: `LogLevel:${_DebugLevel}`, data});
 
             resolve(data);
@@ -185,7 +195,7 @@ function getPiHealthData() {
    });
 }
 
-function controlBulb(roomLightValue, bulbControlMode, bulbState)
+function controlBulb(roomLightValue, bulbControlMode, bulbState, from)
 {
    if(bulbControlMode === BulbControlModes.sensor) {
       const hour = new Date().getHours();
@@ -194,8 +204,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
          (hour.between(17, 23) /*evening*/ || roomLightValue >= PhotoresistorValueStatuses.LightDark))
       {
          bulbState = ON;
-         if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
+         if(_DebugLevel >= LogLevel.medium)
+            log({message: 'Going to switch bulb state.', from, bulbState, bulbControlMode, roomLightValue});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
@@ -203,8 +213,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
          (hour.between(1, 6) /*midnight*/ || roomLightValue < PhotoresistorValueStatuses.LightDark))
       {
          bulbState = OFF;
-         if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue});
+         if(_DebugLevel >= LogLevel.medium)
+            log({message: 'Going to switch bulb state.', from, bulbState, bulbControlMode, roomLightValue});
       }
    }
 
@@ -214,8 +224,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
    
    // whatever the request state is, return the actual state of the bulb.
    let val = pin.readSync();
-   if(_DebugLevel >= LogLevel.important && val != bulbState)
-      log({message: 'Bulb state', requested: bulbState, actual: val});
+   if(val != bulbState)
+      log({message: 'Bulb state', requested: bulbState, afterApplying: val, from});
 
    return val;
 }
@@ -223,8 +233,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 function log(logData) {
    logData.node_pid = process.pid;
    logData.node_parent_pid = process.ppid;
-   console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
+   console.log(`${new Date().toUTCString()}\n`, logData);
+   firestoreService.create(DB.Collections.logs, logData, new Date().toISOString()+'.');
 }
 
 function toNumber(text) {
