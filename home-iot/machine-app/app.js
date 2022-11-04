@@ -30,10 +30,10 @@ var _values = { bulbControlMode: 1, bulbState: OFF };
       }
    });
 
-   log({message: `Node server started.`});
+   log({message: `Node app started.`});
    process.on('warning', e => console.warn(e.stack));
    process.on('SIGINT', () => {
-      log({message: 'Node server exiting.'});
+      log({message: 'Node app exiting.'});
       process.exit();
    });
 })();
@@ -221,6 +221,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState)
 }
 
 function log(logData) {
+   logData.node_process_ids = { pid: process.pid, parent_pid: process.ppid };
    console.log(`${new Date().toLocaleString()}\n`, logData);
    firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
 }
