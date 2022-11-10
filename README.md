@@ -154,6 +154,7 @@ To know about the ending `&`, check *How to run a process in the background* in 
    fi
    ```
 
+
 ## Enable the 1-Wire Interface
 *(Coutesy: circuitbasics.com)*  
 We’ll need to enable the One-Wire interface before the Pi can receive data from the sensor. Once you’ve connected the DS18B20, power up your Pi and log in, then follow these steps to enable the One-Wire interface:

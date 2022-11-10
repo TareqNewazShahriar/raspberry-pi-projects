@@ -126,7 +126,6 @@
          document.querySelectorAll(`input[name="bulbState"]`).forEach(x => x.disabled = data.bulbControlMode == 1);
          (document.querySelector(`input[name="bulbState"][value="${data.bulbState}"]`) || {}).checked = true;
          document.getElementById("photoresistorStatus").innerHTML = data.photoresistorStatus;
-         document.getElementById("connectionCount").innerHTML = data.connectionCount;
          document.querySelector('#local-proxy-status').innerHTML = data.localProxyStatus;
          document.getElementById("last-checked").innerHTML = data.time;
    	});
