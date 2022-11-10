@@ -21,3 +21,4 @@ npm i -g onoff
 
 ## Useful Notes
 * Connect ds18b20 (1-wire digital temperature sensor) to GPIO4 (GPCLK0) pin. Any general pin, like GPIO17 will not work.
+
