@@ -1,17 +1,16 @@
 const { exec } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
-const http = require('http');
 
-const _port = 8080;
-const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
+const LogLevel = { none: 0, crtical: 1, important: 2, medium: 3, verbose: 4 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
-const _DebugLevel = LogLevel.medium;
+const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval = 5 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
-var _Optocoupler_Pin = 16;
+const _Optocoupler_Pin = 16;
+const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
 var _values = { bulbControlMode: 1, bulbState: OFF };
 
 log({message: `Node app started.`});
@@ -20,14 +19,6 @@ process.on('SIGINT', () => {
    log({message: 'Node app exiting.'});
    process.exit();
 });
-
-//Start a server
-http.createServer(function (req, res) {
-   res.write('Hello World!'); //write a response to the client
-   res.end(); //end the response
- }).listen(8080);
- log({message: `Node server started. Port ${_port}`});
-
 
 firestoreService.getById(DB.Collections.values, 'user-settings')
    .then(data => {
@@ -52,7 +43,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          executePythonScript('photoresistor_with_a2d.py', toNumber)
             .then(resultData => {
-               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState, 'bulb-control-mode__from-client');
+               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState, 'bulb-control-mode__from-client';
                
                if(newBulbState !== _values.bulbState) {
                   _values.bulbState = newBulbState;
@@ -70,7 +61,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
 });
 
 // Turn on/off the bulb from client
-firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-status__from-client', true, (data) => {
+firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__from-client', true, (data) => {
    if(!data.success) {
       log(data);
       return;
@@ -126,7 +117,7 @@ function getClientData()
             }
             
             data.bulbState = data.photoresistor.success?
-               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState, 'getClientData') :
+               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState, 'getting machine data') :
                _values.bulbState;
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
@@ -135,7 +126,7 @@ function getClientData()
                   .catch(errorData => log(errorData));
             }
 
-            if(_DebugLevel >= LogLevel.verbose)
+            if(_DebugLevel >= LogLevel.medium)
                log({message: `LogLevel:${_DebugLevel}`, data});
 
             resolve(data);
@@ -195,37 +186,37 @@ function getPiHealthData() {
    });
 }
 
-function controlBulb(roomLightValue, bulbControlMode, bulbState, from)
-{
+function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
    if(bulbControlMode === BulbControlModes.sensor) {
-      const hour = new Date().getHours();
+      const currentHour = new Date().getHours();
       // Set ON
       if(bulbState === OFF &&
-         (hour.between(17, 23) /*evening*/ || roomLightValue >= PhotoresistorValueStatuses.LightDark))
+         (currentHour.between(17, 23) /*evening 6pm-12am*/ ||
+            (roomLightValue >= PhotoresistorValueStatuses.LightDark && currentHour.between(0, 6) === false)))
       {
          bulbState = ON;
-         if(_DebugLevel >= LogLevel.medium)
-            log({message: 'Going to switch bulb state.', from, bulbState, bulbControlMode, roomLightValue});
+         if(_DebugLevel >= LogLevel.important)
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentHour, from});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
       else if(bulbState === ON && 
-         (hour.between(1, 6) /*midnight*/ || roomLightValue < PhotoresistorValueStatuses.LightDark))
+         (currentHour.between(0, 6)/*midnight*/ ||
+         (roomLightValue < PhotoresistorValueStatuses.LightDark && currentHour.between(17, 23) === false)))
       {
          bulbState = OFF;
-         if(_DebugLevel >= LogLevel.medium)
-            log({message: 'Going to switch bulb state.', from, bulbState, bulbControlMode, roomLightValue});
+         if(_DebugLevel >= LogLevel.important)
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentHour, from});
       }
    }
 
    // Set the state to PIN
-   const pin = new Gpio(_Optocoupler_Pin, 'out');
-   pin.writeSync(bulbState);
-   
+   _optocoupler_Gpio.writeSync(bulbState);
+
    // whatever the request state is, return the actual state of the bulb.
-   let val = pin.readSync();
-   if(val != bulbState)
-      log({message: 'Bulb state', requested: bulbState, afterApplying: val, from});
+   let val = _optocoupler_Gpio.readSync();
+   if(_DebugLevel >= LogLevel.important && val != bulbState)
+      log({message: 'Bulb state', currentState: val, requested: bulbState, currentHour, from});
 
    return val;
 }
@@ -233,8 +224,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from)
 function log(logData) {
    logData.node_pid = process.pid;
    logData.node_parent_pid = process.ppid;
-   console.log(`${new Date().toUTCString()}\n`, logData);
-   firestoreService.create(DB.Collections.logs, logData, new Date().toISOString()+'.');
+   console.log(`${new Date().toLocaleString()}\n`, logData);
+   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
 }
 
 function toNumber(text) {
