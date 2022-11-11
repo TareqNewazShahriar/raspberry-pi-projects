@@ -2,7 +2,7 @@ const { exec } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
 
-const LogLevel = { none: 0, crtical: 1, important: 2, medium: 3, verbose: 4 };
+const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
@@ -12,6 +12,7 @@ const OFF = Number(!ON);
 const _Optocoupler_Pin = 16;
 const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
 var _values = { bulbControlMode: 1, bulbState: OFF };
+var _monitorTaskRef;
 
 log({message: `Node app started.`});
 process.on('warning', e => console.warn(e.stack));
@@ -23,7 +24,12 @@ process.on('SIGINT', () => {
 firestoreService.getById(DB.Collections.values, 'user-settings')
    .then(data => {
       _values = data;
-      monitorEnvironment();
+      if(_values.bulbControlMode === BulbControlModes.sensor)
+         monitorEnvironment();
+      else {
+         clearInterval(_monitorTaskRef);
+         _monitorTaskRef = null;
+      }
    })
    .catch(log);
 
@@ -36,23 +42,20 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-r
 });
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-mode__from-client', true, function (data) {
+   console.log('modee', JSON.stringify(data))
+
+
    if(data.success) {
-      _values.bulbControlMode = data.value;
+      _values.bulbControlMode = data.doc.value;
       
       // If sensor mode activated, check the sensor value and take action
       if(_values.bulbControlMode === BulbControlModes.sensor) {
-         executePythonScript('photoresistor_with_a2d.py', toNumber)
-            .then(resultData => {
-               let newBulbState = controlBulb(resultData.value, _values.bulbControlMode, _values.bulbState, 'bulb-control-mode__from-client';
-               
-               if(newBulbState !== _values.bulbState) {
-                  _values.bulbState = newBulbState;
-                  firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
-                  firestoreService.update(DB.Collections.values, 'bulb-state--from-machine', { value: _values.bulbState }).catch(log);
-               }
-               firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-machine', { value: _values.bulbControlMode }).catch(log);
-            })
-            .catch(log);
+         monitorEnvironment();
+         _monitorTaskRef = setInterval(monitorEnvironment, _SensorMonitorInterval);
+      }
+      else {
+         clearInterval(_monitorTaskRef);
+         _monitorTaskRef = null;
       }
    }
    else {
@@ -62,6 +65,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
 
 // Turn on/off the bulb from client
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__from-client', true, (data) => {
+   console.log('statee', JSON.stringify(data))
+
    if(!data.success) {
       log(data);
       return;
@@ -71,7 +76,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
       return;
    
    try {
-      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.value, 'bulb-status__from-client');
+      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.doc.value, 'bulb-state__from-client');
       firestoreService.update(DB.Collections.values, 'user-settings', _values);
    }
    catch(err) {
@@ -88,12 +93,19 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
    });
 });
 
-setInterval(monitorEnvironment, _SensorMonitorInterval);
+_monitorTaskRef = setInterval(monitorEnvironment, _SensorMonitorInterval);
 
 function monitorEnvironment()
 {
    executePythonScript('photoresistor_with_a2d.py', toNumber)
-      .then(data => { controlBulb(data.value, _values.bulbControlMode, _values.bulbState, 'monitoring task'); })
+      .then(data => {
+         let newState = controlBulb(data.value, _values.bulbControlMode, _values.bulbState, 'monitoring task');
+         if(newState !== _values.bulbState) {
+            _values.bulbState = newState;
+            firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
+            firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState }).catch(log);
+         }
+      })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
@@ -122,8 +134,7 @@ function getClientData()
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
 
-               firestoreService.update(DB.Collections.values, 'user-settings', _values)
-                  .catch(errorData => log(errorData));
+               firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
             }
 
             if(_DebugLevel >= LogLevel.medium)
