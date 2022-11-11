@@ -47,7 +47,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
 
    if(data.success) {
       _values.bulbControlMode = data.doc.value;
-      
+      firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
+
       // If sensor mode activated, check the sensor value and take action
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          monitorEnvironment();
@@ -77,7 +78,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
    
    try {
       _values.bulbState = controlBulb(null, _values.bulbControlMode, data.doc.value, 'bulb-state__from-client');
-      firestoreService.update(DB.Collections.values, 'user-settings', _values);
+      firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
    }
    catch(err) {
       log({ message: 'Error while switching bulb pin.', error: err, _values, data});
