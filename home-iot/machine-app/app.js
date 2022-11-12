@@ -35,16 +35,13 @@ firestoreService.getById(DB.Collections.values, 'user-settings')
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
    if(data.success) {
-      getClientData()
+      gatherMachineData()
          .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
          .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
    }
 });
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-mode__from-client', true, function (data) {
-   console.log('modee', JSON.stringify(data))
-
-
    if(data.success) {
       _values.bulbControlMode = data.doc.value;
       firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
@@ -62,12 +59,13 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
    else {
       log(data);
    }
+
+   // Listener error or success, always communicate with the client.
+   firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-client', { time: new Date() }).catch(log);
 });
 
 // Turn on/off the bulb from client
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__from-client', true, (data) => {
-   console.log('statee', JSON.stringify(data))
-
    if(!data.success) {
       log(data);
       return;
@@ -84,7 +82,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
       log({ message: 'Error while switching bulb pin.', error: err, _values, data});
    }
 
-   firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState }).catch(log);
+   firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() }).catch(log);
 });
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-client', true, data => {
@@ -104,13 +102,13 @@ function monitorEnvironment()
          if(newState !== _values.bulbState) {
             _values.bulbState = newState;
             firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
-            firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState }).catch(log);
+            firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() }).catch(log);
          }
       })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
-function getClientData()
+function gatherMachineData()
 {
    return new Promise((resolve, reject) => {
       Promise.allSettled([executePythonScript('thermistor_with_a2d.py', toNumber), executePythonScript('photoresistor_with_a2d.py', toNumber), getPiHealthData()])
