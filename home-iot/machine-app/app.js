@@ -13,6 +13,7 @@ const _Optocoupler_Pin = 16;
 const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
 var _values = { bulbControlMode: 1, bulbState: OFF };
 var _monitorTaskRef;
+var _time_;
 
 log({message: `Node app started.`});
 process.on('warning', e => console.warn(e.stack));
@@ -245,8 +246,11 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
 function log(logData) {
    logData.node_pid = process.pid;
    logData.node_parent_pid = process.ppid;
-   console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON())
+   _time_ = new Date();
+   _time_.setMinutes(_time_.getMinutes() - _time_.getTimezoneOffset()); // convert to local time for easier auditing.
+
+   console.log(`${_time_.toJSON()}\n`, logData);
+   firestoreService.create(DB.Collections.logs, logData, _time_.toJSON())
       .catch(console.log);
 }
 
