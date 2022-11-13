@@ -42,7 +42,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-r
 });
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-mode__from-client', true, function (data) {
-   log({message: 'Bulb control mode switch requested', data});
+   log({message: 'Bulb control mode switch requested.', data, _values});
 
    if(data.success) {
       _values.bulbControlMode = data.doc.value;
@@ -70,6 +70,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
 
 // Turn on/off the bulb from client
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__from-client', true, (data) => {
+   log({message: 'Bulb state change requested.', data, _values});
+
    if(!data.success) {
       log(data);
       return;

@@ -101,7 +101,7 @@ function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
 
 function create(collectionName, data, docId) {
    return new Promise((resolve, reject) => {
-      try { 
+      try {
          const docRef = docId ? _db.collection(collectionName).doc(docId) : _db.collection(collectionName).doc();
          // docRef.set may throw error
          docRef.set(data)
