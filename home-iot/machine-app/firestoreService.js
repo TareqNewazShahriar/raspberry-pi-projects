@@ -1,6 +1,6 @@
-const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
+const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
-const serviceAccountConfig = require('./secrets/firebase-service-account-key.json');
+const serviceAccountConfig = require('./secrets/firebase-service-account-key-backup-db.json');
 
 const DB = {
    Collections: { values: 'values', faces: 'faces', logs: 'logs' },
@@ -108,12 +108,12 @@ function create(collectionName, data, docId) {
             .then(result => {
                resolve(result.id);
             })
-            .catch(err => {
-               reject({message: `Error occurred while adding data. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
+            .catch(error => {
+               reject({message: `Error occurred while adding data. Document name: ${collectionName}. [${error.message}]`, error: error.toJsonString()});
             });
       }
       catch (error) {
-         reject({message: `Error occurred while setting data to docRef. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
+         reject({message: `Error occurred while setting data to docRef. Document name: ${collectionName}. [${error.message}]`, error: error.toJsonString()});
       }
    });
 }
