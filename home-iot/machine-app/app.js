@@ -15,7 +15,7 @@ var _values = { bulbControlMode: 1, bulbState: OFF };
 var _monitorTaskRef;
 var _time_;
 
-log({message: `Node app started.`});
+log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', () => {
    log({message: 'Node app exiting.'});
