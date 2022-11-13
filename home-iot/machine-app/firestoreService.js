@@ -127,16 +127,23 @@ function update(collectionName, docId, data) {
    });
 }
 
+
+/*
+timestamp fields with every doc:
+
+  _readTime: Timestamp { _seconds: 1667069775, _nanoseconds: 928085000 },
+  _createTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 },
+  _updateTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 }
+
+  To convert to JS date: firebaseTimestampObj.toDate()
+*/
 function prepareTheDoc(doc) {
    let document = doc.data();
    if(!document)
       return null;
-   
-   document.id = doc.id;
-   document._readTime = doc._readTime.toDate();
-   document._createTime = doc._createTime.toDate();
-   document._updateTime = doc._createTime._nanoseconds === doc._updateTime._nanoseconds ? null : doc._updateTime.toDate();
 
+   document.id = doc.id;
+   
    //document.keys.forEach(k => document[k] instanceof Timestamp ? document[k] = document[k].toDate() : null);
    for (const key in document) {
       if (Object.hasOwnProperty.call(document, key) && document[key] instanceof Timestamp) {
@@ -157,11 +164,3 @@ const firestoreService = {
 };
 
 module.exports = { firestoreService, DB };
-
-/*
-timestamp fields with every doc:
-
-  _readTime: Timestamp { _seconds: 1667069775, _nanoseconds: 928085000 },
-  _createTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 },
-  _updateTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 }
-*/
