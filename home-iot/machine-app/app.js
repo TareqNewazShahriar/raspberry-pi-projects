@@ -36,7 +36,7 @@ firestoreService.getById(DB.Collections.values, 'user-settings')
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
    if(data.success) {
       gatherMachineData()
-         .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData))
+         .then(clientData => firestoreService.update(DB.Collections.values, 'machine-data', clientData).catch(log))
          .catch(errorData => (_DebugLevel >= LogLevel.important ? log(errorData) : null));
    }
 });
@@ -46,7 +46,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
 
    if(data.success) {
       _values.bulbControlMode = data.doc.value;
-      firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
+      firestoreService.update(DB.Collections.values, 'user-settings', _values)
+         .catch(log);
 
       // If sensor mode activated, check the sensor value and take action
       if(_values.bulbControlMode === BulbControlModes.sensor) {
@@ -63,7 +64,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
    }
 
    // Listener error or success, always communicate with the client.
-   firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-machine', { time: new Date() }).catch(log);
+   firestoreService.update(DB.Collections.values, 'bulb-control-mode__from-machine', { time: new Date() })
+      .catch(log);
 });
 
 // Turn on/off the bulb from client
@@ -78,13 +80,15 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
    
    try {
       _values.bulbState = controlBulb(null, _values.bulbControlMode, data.doc.value, 'bulb-state__from-client');
-      firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
+      firestoreService.update(DB.Collections.values, 'user-settings', _values)
+         .catch(log);
    }
    catch(err) {
       log({ message: 'Error while switching bulb pin.', error: err, _values, data});
    }
 
-   firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() }).catch(log);
+   firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
+      .catch(log);
 });
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-client', true, data => {
@@ -103,8 +107,10 @@ function monitorEnvironment()
          let newState = controlBulb(data.value, _values.bulbControlMode, _values.bulbState, 'monitoring task');
          if(newState !== _values.bulbState) {
             _values.bulbState = newState;
-            firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
-            firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() }).catch(log);
+            firestoreService.update(DB.Collections.values, 'user-settings', _values)
+               .catch(log);
+            firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
+               .catch(log);
          }
       })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
@@ -135,7 +141,8 @@ function gatherMachineData()
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
 
-               firestoreService.update(DB.Collections.values, 'user-settings', _values).catch(log);
+               firestoreService.update(DB.Collections.values, 'user-settings', _values)
+                  .catch(log);
             }
 
             if(_DebugLevel >= LogLevel.medium)
@@ -237,7 +244,8 @@ function log(logData) {
    logData.node_pid = process.pid;
    logData.node_parent_pid = process.ppid;
    console.log(`${new Date().toLocaleString()}\n`, logData);
-   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON());
+   firestoreService.create(DB.Collections.logs, logData, new Date().toJSON())
+      .catch(console.log);
 }
 
 function toNumber(text) {

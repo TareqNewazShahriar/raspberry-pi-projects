@@ -27,21 +27,22 @@ function getCollection(collectionName, field, operator, val) {
          _db.collection(collectionName).where(field, operator, val).get() :
          _db.collection(collectionName).get();
 
-         promise.then(result => {
-            if (result.empty) {
-               resolve([]);
-            }
-            else {
-               let collection = [];
-               result.forEach(doc => {
-                  collection.push(prepareTheDoc(doc));
-               });
-               resolve(collection);
-            }
-         })
-         .catch(err => {
-            reject({message: `Error occurred while getting data. Document name: ${collectionName} [${err.message}]`, error: err.toJsonString()});
-         });;
+         promise
+            .then(result => {
+               if (result.empty) {
+                  resolve([]);
+               }
+               else {
+                  let collection = [];
+                  result.forEach(doc => {
+                     collection.push(prepareTheDoc(doc));
+                  });
+                  resolve(collection);
+               }
+            })
+            .catch(err => {
+               reject({message: `Error occurred while getting data. Document name: ${collectionName} [${err.message}]`, error: err.toJsonString()});
+            });
    });
 }
 
@@ -100,14 +101,20 @@ function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
 
 function create(collectionName, data, docId) {
    return new Promise((resolve, reject) => {
-      const docRef = docId ? _db.collection(collectionName).doc(docId) : _db.collection(collectionName).doc();
-      docRef.set(data)
-         .then(result => {
-            resolve(result.id);
-         })
-         .catch(err => {
-            reject({message: `Error occurred while adding data. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
-         });
+      try { 
+         const docRef = docId ? _db.collection(collectionName).doc(docId) : _db.collection(collectionName).doc();
+         // docRef.set may throw error
+         docRef.set(data)
+            .then(result => {
+               resolve(result.id);
+            })
+            .catch(err => {
+               reject({message: `Error occurred while adding data. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
+            });
+      }
+      catch (error) {
+         reject({message: `Error occurred while setting data to docRef. Document name: ${collectionName}. [${err.message}]`, error: err.toJsonString()});
+      }
    });
 }
 
