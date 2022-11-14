@@ -1,7 +1,9 @@
 const { exec } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
+const server = require('http').createServer(handleRequest);
 
+const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
@@ -15,12 +17,22 @@ var _values = { bulbControlMode: 1, bulbState: OFF };
 var _monitorTaskRef;
 var _time_;
 
-log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
+
 process.on('warning', e => console.warn(e.stack));
 process.on('SIGINT', () => {
    log({message: 'Node app exiting.'});
    process.exit();
 });
+
+server.listen(_port);
+log({message: `Node app started, port ${_port}. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
+
+
+// Handle response
+function handleRequest(req, res) {
+   res.write('Hello World!'); //write a response to the client
+   res.end(); //end the response
+}
 
 firestoreService.getById(DB.Collections.values, 'user-settings')
    .then(data => {
