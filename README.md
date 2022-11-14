@@ -268,7 +268,7 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
    Filtering processes
    ```
-   ps -e | grep <partial_process_name> # example: ps -e | grep nod
+   ps -e | grep <partial_process_name> # example: ps -e | grep node
    ```
 
    Real-time process listing by CPU usage
@@ -294,7 +294,7 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 
 * Top 10 processes sorted by CPU usage. This will count the header line as one record, that's why `-11`
    ```sh
-   ps -eo comm,pcpu,pmem,time,stat --sort -pcpu | head -11
+   ps -eo pmem,time,stat,pid,pcpu,command --sort -pcpu | head -11
    ```
 
 * Memory status
