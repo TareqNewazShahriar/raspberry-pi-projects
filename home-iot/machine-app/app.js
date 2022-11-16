@@ -1,9 +1,9 @@
 const { exec } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
-const server = require('http').createServer(handleRequest);
+//const server = require('http').createServer(handleRequest);
 
-const _port = 8080;
+//const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
 const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
 const BulbControlModes = { sensor: 1, manual: 2 }
@@ -18,14 +18,17 @@ var _monitorTaskRef;
 var _time_;
 
 
-process.on('warning', e => console.warn(e.stack));
+process.on('warning', error => log({ message: 'Node warning.', error: error.toJsonString()}));
 process.on('SIGINT', () => {
    log({message: 'Node app exiting.'});
    process.exit();
 });
+process.on('uncaughtException', (error, origin) => {
+   log({message: 'Uncaught exception.', error: error.toJsonString(), origin});
+ });
 
-server.listen(_port);
-log({message: `Node app started, port ${_port}. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
+//server.listen(_port);
+log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
 
 
 // Handle response
@@ -98,8 +101,8 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
       firestoreService.update(DB.Collections.values, 'user-settings', _values)
          .catch(log);
    }
-   catch(err) {
-      log({ message: 'Error while switching bulb pin.', error: err, _values, data});
+   catch(error) {
+      log({ message: 'Error while switching bulb pin.', error, _values, data});
    }
 
    firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
@@ -165,8 +168,8 @@ function gatherMachineData()
 
             resolve(data);
          })
-         .catch(err => {
-            reject({ message: 'emitSensorsData catch', error: err.toJsonString('emitSensorsData > catch')});
+         .catch(error => {
+            reject({ message: 'emitSensorsData catch', error: error.toJsonString('emitSensorsData > catch')});
          });
    });
 }
@@ -180,9 +183,9 @@ function executePythonScript(codeFileName, parseCallback)
             if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScript -> in promise'});
 
             if(error) {
-               if(_DebugLevel >= LogLevel.important) log({message: 'executePythonScript > error', error: err});
+               if(_DebugLevel >= LogLevel.important) log({message: 'executePythonScript > error', error});
                
-               reject({error: err.toJsonString('execute-python > on error event'), succes: false});
+               reject({error: error.toJsonString('execute-python > on error event'), succes: false});
             }
             else {
                if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScript -> success', data});
