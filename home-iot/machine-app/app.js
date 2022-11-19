@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
 const { firestoreService, DB } = require('./firestoreService');
 //const server = require('http').createServer(handleRequest);
@@ -25,11 +25,9 @@ process.on('SIGINT', () => {
 });
 process.on('uncaughtException', (error, origin) => {
    log({message: 'Uncaught exception.', error: error.toJsonString(), origin});
- });
-
+});
 //server.listen(_port);
 log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
-
 
 // Handle response
 function handleRequest(req, res) {
