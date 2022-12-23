@@ -178,11 +178,12 @@ If any `dtoverlay=` is already there, doesn't matter; add one more at bottom.
 * Go to `28-xxxxxxxxxxx` directory and type `cat w1_slave` to see the temperature value from sensor.
 
 
+
 ## TroubleShooting
 * **Trouble**: Problem connecting to RPI with VSCode remote explorer with previous ssh config.  
   **Shoot**: Remove the previous ssh SHA1 string from the computer. On Windows, it is in `os drive/users/<username>/.ssh/known_hosts`.
   
-* **Trouble** Where to look for system logs, crash/error/warning logs:
+* **Trouble** Where to look for system logs, crash/error/warning logs:  
   **Shoot**:
   - The command `dmesg` will return most of the activity of the current boot. `dmesg` returns every event after the boot and how long after the boot, in seconds.
   - The files `/var/log/messages` `/var/log/syslog` and `/var/log/kern.log` will return pretty much every event you could ever need to know to figure out what happened.
