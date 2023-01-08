@@ -204,6 +204,47 @@ function executePythonScript(codeFileName, parseCallback)
       });//promise
 }
 
+function executePythonScriptUsingSpawn(codeFileName, parseCallback) {
+   if(_DebugLevel >= LogLevel.verbose)
+      log({ message:'executePythonScriptUsingSpawn() entered', path: `${__dirname}/pythonScript/${codeFileName}` })
+
+   const pyProg = spawn('python', [`${__dirname}/pythonScript/${codeFileName}`]);
+   return new Promise((resolve, reject) => {
+      if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScriptUsingSpawn() -> in promise'})
+
+      pyProg.stdout.on('data', function(data) {
+         if(_DebugLevel >= LogLevel.verbose) log({message: 'executePythonScriptUsingSpawn() -> data', data});
+
+         let result = {};
+         try {
+            result.value = parseCallback ? parseCallback(data.toString()) : data.toString();
+            result.success = true;
+            resolve(result);
+         }
+         catch (error) {
+            result.error = error.toJsonString('spawn-python > data > try-catch');
+            result.success = false;
+            reject(result);
+         }
+      });
+
+      pyProg.stdout.on('error', function(err){
+         log({message: 'pyProg.stdout.on > error', err});
+         reject({ success: false, message: `Error occurred while executing python script: ${codeFileName}. [${err.message}]`, error: err });
+      });
+
+      pyProg.stdout.on('end', function(data){
+         // Promise should be resolved (resolve or reject) should be 
+         // called earlier this event.
+         // Not resolving the promise this far means someting's wrong.
+         // So execute the reject callback.
+
+         if(_DebugLevel >= LogLevel.verbose) log({message: 'pyProg.stdout.on > end', data});
+         reject({ success: false, message: `From spawn>end event, script: ${codeFileName}` });
+      });
+   });
+}
+
 function getPiHealthData() {
    if(_DebugLevel >= LogLevel.verbose) log({ message: 'getPiHealthData() entered'})
    return new Promise((resolve, reject) => {
