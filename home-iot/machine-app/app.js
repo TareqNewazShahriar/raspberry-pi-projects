@@ -248,13 +248,13 @@ function executePythonScriptUsingSpawn(codeFileName, parseCallback) {
 function getPiHealthData() {
    if(_DebugLevel >= LogLevel.verbose) log({ message: 'getPiHealthData() entered'})
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "===Cpu temperature==="; cat /sys/class/thermal/thermal_zone0/temp; echo "===Gpu temperature==="; vcgencmd measure_temp; echo "===Memory Usage==="; free -h; echo "===Cpu Usage (top processes)==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "===Voltage condition (expected: 0x0)==="; vcgencmd get_throttled; echo "===System Messages==="; dmesg | egrep 'voltage|error|fail';`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "=== Cpu temperature === "; /usr/bin/vcgencmd measure_temp | awk -F "[=']" '{print($2, "C")}'; echo "=== Gpu temperature ==="; vcgencmd measure_temp | egrep -o '[[:digit:]].*'; echo "=== Memory Usage ==="; free -h; echo "=== Cpu Usage (top processes) ==="; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "=== Voltage condition (expected: 0x0) ==="; vcgencmd get_throttled; echo "=== Critical system messages ==="; dmesg | egrep 'voltage|error|fail' | cat;`,
          (error, data) => {
             if(_DebugLevel >= LogLevel.verbose) log({message: 'getPiHealthData() > exec > callback', error})
             if(error) {
                console.error({errorOnPiHealthData: error})
                reject({error: error.toJsonString('piHealthData'), succes: false})
-            }      
+            }
             else {
                resolve({value: data, success: true});
             }
