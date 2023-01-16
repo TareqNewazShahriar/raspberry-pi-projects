@@ -248,7 +248,7 @@ function executePythonScriptUsingSpawn(codeFileName, parseCallback) {
 function getPiHealthData() {
    if(_DebugLevel >= LogLevel.verbose) log({ message: 'getPiHealthData() entered'})
    return new Promise((resolve, reject) => {
-      exec(`cat /proc/cpuinfo | grep Raspberry; echo "\n -----Cpu temperature -----";  /usr/bin/vcgencmd measure_temp | awk -F "[=']" '{print($2, "C")}'; echo "\n -----Gpu temperature -----"; vcgencmd measure_temp | egrep -o '[[:digit:]].*'; echo "\n -----Memory Usage -----"; free -h; echo "\n -----Cpu Usage (top processes) -----"; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "\n -----Voltage condition (expected: 0x0) -----"; vcgencmd get_throttled; echo "\n -----= Critical system messages -----"; dmesg | egrep 'voltage|error|fail' | cat;`,
+      exec(`cat /proc/cpuinfo | grep Raspberry; echo "\n ----- Cpu temperature -----";  /usr/bin/vcgencmd measure_temp | awk -F "[=']" '{print($2, "C")}'; echo "\n ----- Gpu temperature -----"; vcgencmd measure_temp | egrep -o '[[:digit:]].*'; echo "\n ----- Memory Usage -----"; free -h; echo "\n ----- Cpu Usage (top processes) -----"; ps -eo time,pmem,pcpu,command --sort -pcpu | head -8; echo "\n ----- Voltage condition (expected: 0x0) -----"; vcgencmd get_throttled; echo "\n ----- Critical system messages -----"; dmesg | egrep 'voltage|error|fail' | cat;`,
          (error, data) => {
             if(_DebugLevel >= LogLevel.verbose) log({message: 'getPiHealthData() > exec > callback', error})
             if(error) {
