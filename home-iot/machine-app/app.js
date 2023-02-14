@@ -264,25 +264,39 @@ function getPiHealthData() {
 
 function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
    if(bulbControlMode === BulbControlModes.sensor) {
-      const currentHour = new Date().getHours();
+      let currentTime = new Date();
+      let evening = new Date();
+      let midnight = new Date();
+      let nextMorning = new Date();
+      
+      evening.setHours(17); // 6 pm
+      evening.setMinutes(00); // 6:00 pm
+      
+      midnight.setHours(22); // 10 pm
+      midnight.setMinutes(30); // 10:30 pm
+      
+      nextMorning.setDate(nextMorning.getDate() + 1);
+      nextMorning.setHours(5) // 6 am
+      nextMorning.setMinutes(0); // 6:00 am
+
       // Set ON
       if(bulbState === OFF &&
-         (currentHour.between(17, 23) /*evening 6pm-12am*/ ||
-            (roomLightValue >= PhotoresistorValueStatuses.LightDark && currentHour.between(0, 6) === false)))
+         (currentTime.between(evening, midnight) ||
+         (roomLightValue >= PhotoresistorValueStatuses.LightDark && currentTime.between(midnight, nextMorning) === false)))
       {
          bulbState = ON;
          if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentHour, from});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentTime, from});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
       else if(bulbState === ON && 
-         (currentHour.between(0, 6)/*midnight*/ ||
-         (roomLightValue < PhotoresistorValueStatuses.LightDark && currentHour.between(17, 23) === false)))
+         (currentTime.between(midnight, nextMorning)/*midnight*/ ||
+         (roomLightValue < PhotoresistorValueStatuses.LightDark && currentTime.between(evening, midnight) === false)))
       {
          bulbState = OFF;
          if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentHour, from});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentTime, from});
       }
    }
 
@@ -292,7 +306,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
    // whatever the request state is, return the actual state of the bulb.
    let val = _optocoupler_Gpio.readSync();
    if(_DebugLevel >= LogLevel.important && val != bulbState)
-      log({message: 'Bulb state', currentState: val, requested: bulbState, currentHour, from});
+      log({message: 'Bulb state', currentState: val, requested: bulbState, currentTime, from});
 
    return val;
 }
@@ -322,5 +336,9 @@ Error.prototype.toJsonString = function(inFunc) {
 }
 
 Number.prototype.between = function(a, b) {
+   return this >= a && this <= b;
+}
+
+Date.prototype.between = function(a, b) {
    return this >= a && this <= b;
 }
