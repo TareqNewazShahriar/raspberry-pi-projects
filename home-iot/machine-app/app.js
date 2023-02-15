@@ -5,7 +5,7 @@ const { firestoreService, DB } = require('./firestoreService');
 
 //const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 255, ItBecameBlackhole:  Number.POSITIVE_INFINITY };
+const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 235, ItBecameBlackhole: 255 };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval = 5 * 60 * 1000;
@@ -127,6 +127,9 @@ function monitorEnvironment()
                .catch(log);
             firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
                .catch(log);
+
+            if(data.value < PhotoresistorValueStatuses.LightDark && new Date().getHours() == 22 /*11pm*/)
+               startMidnightLightActions();
          }
       })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}));
@@ -309,6 +312,31 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
       log({message: 'Bulb state', currentState: val, requested: bulbState, currentTime, from});
 
    return val;
+}
+
+function startMidnightLightActions() {
+   executePythonScript('photoresistor_with_a2d.py', toNumber)
+      .then(data => {
+         // toggle bulb
+         const pinState = _optocoupler_Gpio.readSync();
+         _optocoupler_Gpio.writeSync(Number(!pinState));
+
+         // whatever the request state is, return the actual state of the bulb.
+         let newPinState = _optocoupler_Gpio.readSync();
+         if(_DebugLevel >= LogLevel.important && newPinState != pinState)
+            log({message: 'Bulb state', currentState: newPinState, requested: bulbState, currentTime, from});
+
+         _values.bulbState = newState;
+         firestoreService.update(DB.Collections.values, 'user-settings', _values)
+            .catch(log);
+         firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
+            .catch(log);
+
+         if(data.value < PhotoresistorValueStatuses.LightDark && new Date().getHours() == 22) {
+            setTimeout(startMidnightLightActions, 1.5 * 60 * 1000);
+         }
+      })
+      .catch(data => log({message: 'Error while getting photoresistor data.', data}));
 }
 
 function log(logData) {
