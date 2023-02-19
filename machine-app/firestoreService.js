@@ -1,6 +1,6 @@
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
-const serviceAccountConfig = require('./secrets/firebase-service-account-key-backup-db.json');
+const serviceAccountConfig = require('./secrets/firebase-configuration.json');
 
 const DB = {
    Collections: { values: 'values', faces: 'faces', logs: 'logs' },

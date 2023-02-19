@@ -5,16 +5,16 @@ const { firestoreService, DB } = require('./firestoreService');
 
 //const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const PhotoresistorValueStatuses = { Good: 187, Medium: 200, LightDark: 217, Dark: 235, ItBecameBlackhole: 255 };
+const LightConditions = { GoodLight: 187, MediumLight: 200, LightDark: 210, MediumDark: 217, Dark: 235, Blackhole: 255 };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
-const _SensorMonitorInterval = 5 * 60 * 1000;
+const _SensorMonitorInterval_AllDay = 5 * 60 * 1000;
+const _SensorMonitorInterval_Midnight = 1 * 60 * 1000;
 const ON = 1;
 const OFF = Number(!ON);
 const _Optocoupler_Pin = 16;
 const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
 var _values = { bulbControlMode: 1, bulbState: OFF };
-var _monitorTaskRef;
 var _time_;
 
 
@@ -24,27 +24,21 @@ process.on('SIGINT', () => {
    process.exit();
 });
 process.on('uncaughtException', (error, origin) => {
-   log({message: 'Uncaught exception.', error: error.toJsonString(), origin});
+   log({message: 'Uncaught exception.', error: error.message, call: error.stack, origin});
 });
 //server.listen(_port);
 log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
 
+monitorEnvironment();
+
 // Handle response
-function handleRequest(req, res) {
-   res.write('Hello World!'); //write a response to the client
-   res.end(); //end the response
-}
+// function handleRequest(req, res) {
+//    res.write('Hello World!'); //write a response to the client
+//    res.end(); //end the response
+// }
 
 firestoreService.getById(DB.Collections.values, 'user-settings')
-   .then(data => {
-      _values = data;
-      if(_values.bulbControlMode === BulbControlModes.sensor)
-         monitorEnvironment();
-      else {
-         clearInterval(_monitorTaskRef);
-         _monitorTaskRef = null;
-      }
-   })
+   .then(data => _values = data)
    .catch(log);
 
 firestoreService.attachListenerOnDocument(DB.Collections.values, 'machine-data-request', true, (data) => {
@@ -66,11 +60,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
       // If sensor mode activated, check the sensor value and take action
       if(_values.bulbControlMode === BulbControlModes.sensor) {
          monitorEnvironment();
-         _monitorTaskRef = setInterval(monitorEnvironment, _SensorMonitorInterval);
-      }
-      else {
-         clearInterval(_monitorTaskRef);
-         _monitorTaskRef = null;
+         setTimeout(monitorEnvironment, _SensorMonitorInterval_AllDay);
       }
    }
    else {
@@ -95,7 +85,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-state__fr
       return;
    
    try {
-      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.doc.value, 'bulb-state__from-client');
+      _values.bulbState = controlBulb(null, _values.bulbControlMode, data.doc.value, false, 'bulb-state__from-client');
       firestoreService.update(DB.Collections.values, 'user-settings', _values)
          .catch(log);
    }
@@ -114,25 +104,24 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
    });
 });
 
-_monitorTaskRef = setInterval(monitorEnvironment, _SensorMonitorInterval);
-
 function monitorEnvironment()
 {
+   let isSleepTime = false;
    executePythonScript('photoresistor_with_a2d.py', toNumber)
       .then(data => {
-         let newState = controlBulb(data.value, _values.bulbControlMode, _values.bulbState, 'monitoring task');
+         isSleepTime = isTimeToSleep(data.value);
+         let newState = controlBulb(data.value, _values.bulbControlMode, _values.bulbState, isSleepTime, 'monitoring task');
+
          if(newState !== _values.bulbState) {
             _values.bulbState = newState;
             firestoreService.update(DB.Collections.values, 'user-settings', _values)
                .catch(log);
             firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
                .catch(log);
-
-            if(data.value < PhotoresistorValueStatuses.LightDark && new Date().getHours() == 22 /*11pm*/)
-               startMidnightLightActions();
          }
       })
-      .catch(data => log({message: 'Error while getting photoresistor data.', data}));
+      .catch(data => log({message: 'Error while getting photoresistor data.', data}))
+      .finally(() => setTimeout(monitorEnvironment, (isSleepTime ? _SensorMonitorInterval_Midnight : _SensorMonitorInterval_AllDay)));
 }
 
 function gatherMachineData()
@@ -146,7 +135,7 @@ function gatherMachineData()
                thermistor: results[0].value || results[0].reason,
                photoresistor: results[1].value || results[1].reason,
                piHealthData: results[2].value || results[2].reason,
-               photoresistorStatus: Object.entries(PhotoresistorValueStatuses).map(x => `${x[0]}: ${x[1]}`).join(', '),
+               LightConditions,
                bulbControlMode: _values.bulbControlMode,
                bulbState: undefined,
                time: new Date(), // TODO: make utc using offset gmt
@@ -155,7 +144,7 @@ function gatherMachineData()
             }
             
             data.bulbState = data.photoresistor.success?
-               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState, 'getting machine data') :
+               controlBulb(data.photoresistor.value, _values.bulbControlMode, _values.bulbState, false, 'getting machine data') :
                _values.bulbState;
             if(data.bulbState !== _values.bulbState) {
                _values.bulbState = data.bulbState;
@@ -265,27 +254,31 @@ function getPiHealthData() {
    });
 }
 
-function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
-   if(bulbControlMode === BulbControlModes.sensor) {
+function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, from) {
+   if(toggleBulb) {
+      bulbState = Number(!_optocoupler_Gpio.readSync());
+      log({message: 'Going to toggle the bulb.', bulbState, bulbControlMode, roomLightValue, from});
+   }
+   else if(bulbControlMode === BulbControlModes.sensor) {
       let currentTime = new Date();
       let evening = new Date();
       let midnight = new Date();
       let nextMorning = new Date();
       
-      evening.setHours(17); // 6 pm
+      evening.setHours(18); // 6 pm
       evening.setMinutes(00); // 6:00 pm
       
       midnight.setHours(22); // 10 pm
       midnight.setMinutes(30); // 10:30 pm
       
       nextMorning.setDate(nextMorning.getDate() + 1);
-      nextMorning.setHours(5) // 6 am
+      nextMorning.setHours(6) // 6 am
       nextMorning.setMinutes(0); // 6:00 am
 
       // Set ON
       if(bulbState === OFF &&
          (currentTime.between(evening, midnight) ||
-         (roomLightValue >= PhotoresistorValueStatuses.LightDark && currentTime.between(midnight, nextMorning) === false)))
+         (roomLightValue >= LightConditions.LightDark && currentTime.between(midnight, nextMorning) === false)))
       {
          bulbState = ON;
          if(_DebugLevel >= LogLevel.important)
@@ -293,9 +286,9 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
-      else if(bulbState === ON && 
+      else if(bulbState === ON &&
          (currentTime.between(midnight, nextMorning)/*midnight*/ ||
-         (roomLightValue < PhotoresistorValueStatuses.LightDark && currentTime.between(evening, midnight) === false)))
+         (roomLightValue < LightConditions.LightDark && currentTime.between(evening, midnight) === false)))
       {
          bulbState = OFF;
          if(_DebugLevel >= LogLevel.important)
@@ -314,29 +307,10 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, from) {
    return val;
 }
 
-function startMidnightLightActions() {
-   executePythonScript('photoresistor_with_a2d.py', toNumber)
-      .then(data => {
-         // toggle bulb
-         const pinState = _optocoupler_Gpio.readSync();
-         _optocoupler_Gpio.writeSync(Number(!pinState));
-
-         // whatever the request state is, return the actual state of the bulb.
-         let newPinState = _optocoupler_Gpio.readSync();
-         if(_DebugLevel >= LogLevel.important && newPinState != pinState)
-            log({message: 'Bulb state', currentState: newPinState, requested: bulbState, currentTime, from});
-
-         _values.bulbState = newState;
-         firestoreService.update(DB.Collections.values, 'user-settings', _values)
-            .catch(log);
-         firestoreService.update(DB.Collections.values, 'bulb-state__from-machine', { value: _values.bulbState, time: new Date() })
-            .catch(log);
-
-         if(data.value < PhotoresistorValueStatuses.LightDark && new Date().getHours() == 22) {
-            setTimeout(startMidnightLightActions, 1.5 * 60 * 1000);
-         }
-      })
-      .catch(data => log({message: 'Error while getting photoresistor data.', data}));
+function isTimeToSleep(lightConditionValue) {
+   let time = new Date();
+   return lightConditionValue < LightConditions.MediumDark &&
+      time.getHours() == 23 && time.getMinutes() >= 30;
 }
 
 function log(logData) {
