@@ -265,14 +265,14 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
       let midnight = new Date();
       let nextMorning = new Date();
       
-      evening.setHours(18); // 6 pm
+      evening.setHours(18); // 6:?? pm
       evening.setMinutes(00); // 6:00 pm
       
-      midnight.setHours(22); // 10 pm
+      midnight.setHours(22); // 10:?? pm
       midnight.setMinutes(30); // 10:30 pm
       
       nextMorning.setDate(nextMorning.getDate() + 1);
-      nextMorning.setHours(6) // 6 am
+      nextMorning.setHours(6) // 6:?? am
       nextMorning.setMinutes(0); // 6:00 am
 
       // Set ON
@@ -308,9 +308,8 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
 }
 
 function isTimeToSleep(lightConditionValue) {
-   let time = new Date();
-   return lightConditionValue < LightConditions.MediumDark &&
-      time.getHours() == 23 && time.getMinutes() >= 30;
+   let currentHour = new Date().getHours();
+   return lightConditionValue < LightConditions.MediumDark && [23, 0].includes(currentHour);
 }
 
 function log(logData) {
