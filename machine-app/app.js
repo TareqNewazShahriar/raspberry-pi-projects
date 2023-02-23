@@ -282,7 +282,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
       {
          bulbState = ON;
          if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentTime, from});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, currentTime, evening, midnight, nextMorning, from});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
@@ -292,7 +292,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
       {
          bulbState = OFF;
          if(_DebugLevel >= LogLevel.important)
-            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, hour: currentTime, from});
+            log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, currentTime, evening, midnight, nextMorning, from});
       }
    }
 
