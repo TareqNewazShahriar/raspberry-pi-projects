@@ -29,8 +29,6 @@ process.on('uncaughtException', (error, origin) => {
 //server.listen(_port);
 log({message: `Node app started. Getting this log in to DB and no listerner error mean PI is communicating with firebase.`});
 
-monitorEnvironment();
-
 // Handle response
 // function handleRequest(req, res) {
 //    res.write('Hello World!'); //write a response to the client
@@ -56,12 +54,6 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'bulb-control-m
       _values.bulbControlMode = data.doc.value;
       firestoreService.update(DB.Collections.values, 'user-settings', _values)
          .catch(log);
-
-      // If sensor mode activated, check the sensor value and take action
-      if(_values.bulbControlMode === BulbControlModes.sensor) {
-         monitorEnvironment();
-         setTimeout(monitorEnvironment, _SensorMonitorInterval_AllDay);
-      }
    }
    else {
       log(data);
@@ -104,7 +96,10 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
    });
 });
 
-function monitorEnvironment()
+// This method shouldn't be called by anywhere else.
+// Otherwise, this function will be registered to setTimeout
+// multiple times.
+(function monitorEnvironment()
 {
    let isSleepTime = false;
    executePythonScript('photoresistor_with_a2d.py', toNumber)
@@ -122,7 +117,7 @@ function monitorEnvironment()
       })
       .catch(data => log({message: 'Error while getting photoresistor data.', data}))
       .finally(() => setTimeout(monitorEnvironment, (isSleepTime ? _SensorMonitorInterval_Midnight : _SensorMonitorInterval_AllDay)));
-}
+})();
 
 function gatherMachineData()
 {
@@ -266,31 +261,49 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
       let nextMorning = new Date();
       
       evening.setHours(18); // 6:?? pm
-      evening.setMinutes(00); // 6:00 pm
+      evening.setMinutes(0); // 6:00 pm
       
-      midnight.setHours(22); // 10:?? pm
-      midnight.setMinutes(30); // 10:30 pm
+      midnight.setHours(23); // 10:?? pm
+      midnight.setMinutes(0); // 10:30 pm
       
       nextMorning.setDate(nextMorning.getDate() + 1);
       nextMorning.setHours(6) // 6:?? am
       nextMorning.setMinutes(0); // 6:00 am
 
       // Set ON
-      if(bulbState === OFF &&
-         (currentTime.between(evening, midnight) ||
-         (roomLightValue >= LightConditions.LightDark && currentTime.between(midnight, nextMorning) === false)))
+      if(
+         bulbState === OFF &&
+         (
+            currentTime.between(evening, midnight) 
+            ||
+            (
+               roomLightValue >= LightConditions.LightDark &&
+               !currentTime.between(midnight, nextMorning)
+            )
+         )
+      )
       {
          bulbState = ON;
+         
          if(_DebugLevel >= LogLevel.important)
             log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, currentTime, evening, midnight, nextMorning, from});
       }
       // Set OFF
       // NOTE: If the bulb is on checking the sensor will not help (because the room is lit). Check the time instead.
-      else if(bulbState === ON &&
-         (currentTime.between(midnight, nextMorning)/*midnight*/ ||
-         (roomLightValue < LightConditions.LightDark && currentTime.between(evening, midnight) === false)))
+      else if(
+         bulbState === ON &&
+         (
+            currentTime.between(midnight, nextMorning)/*midnight*/
+            ||
+            (
+               roomLightValue < LightConditions.LightDark && 
+               !currentTime.between(evening, midnight)
+            )
+         )
+      )
       {
          bulbState = OFF;
+
          if(_DebugLevel >= LogLevel.important)
             log({message: 'Going to switch bulb state.', bulbState, bulbControlMode, roomLightValue, currentTime, evening, midnight, nextMorning, from});
       }
@@ -308,8 +321,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
 }
 
 function isTimeToSleep(lightConditionValue) {
-   let currentHour = new Date().getHours();
-   return lightConditionValue < LightConditions.MediumDark && [23, 0].includes(currentHour);
+   return lightConditionValue < LightConditions.MediumDark && [23, 0].includes(new Date().getHours());
 }
 
 function log(logData) {
