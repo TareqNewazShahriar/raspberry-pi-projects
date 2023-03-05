@@ -35,7 +35,7 @@ function getCollection(collectionName, field, operator, val) {
                else {
                   let collection = [];
                   result.forEach(doc => {
-                     collection.push(prepareTheDoc(doc));
+                     collection.push(doc);
                   });
                   resolve(collection);
                }
@@ -56,7 +56,7 @@ function getCollectionWithListener(collectionName, field, operator, val, onChang
    const unsubCallback = query.onSnapshot(querySnapshot => {
          const collection = [];
          querySnapshot.docChanges().forEach(res => {
-            collection.push({ state: res.type, doc: prepareTheDoc(res.doc) });
+            collection.push({ state: res.type, doc: res.doc });
          });
          onChange({ success: true, collection});
       },
@@ -70,7 +70,7 @@ function getById(collectionName, docId) {
       _db.collection(collectionName).doc(docId)
          .get()
          .then(docSpapshot => {
-            docSpapshot.exists ? resolve(prepareTheDoc(docSpapshot)) : resolve(data);
+            docSpapshot.exists ? resolve(docSpapshot) : resolve(data);
          })
          .catch(err => {
             reject({message: `Error occurred while getting data. Document name: ${collectionName}, doc-id: ${docId}. [${err.message}]`, error: err.toJsonString()});
@@ -91,7 +91,7 @@ function attachListenerOnDocument(collectionName, docId, skipFirst, onChange) {
             skipFirst = undefined;
             return;
       }
-      const document = prepareTheDoc(docSnapshot);
+      const document = docSnapshot;
       onChange({ success: true, doc: document});
    },
    err => onChange({ success: false, errorMessage: `Error occurred on ${collectionName}/${docId} listener. [${err.message}]`}));
@@ -129,7 +129,7 @@ function update(collectionName, docId, data) {
 
 
 /*
-timestamp fields with every doc:
+Adds document ID and timestamp fields with every doc:
 
   _readTime: Timestamp { _seconds: 1667069775, _nanoseconds: 928085000 },
   _createTime: Timestamp { _seconds: 1667036376, _nanoseconds: 570482000 },
