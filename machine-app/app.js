@@ -154,7 +154,7 @@ function gatherMachineData()
             resolve(data);
          })
          .catch(error => {
-            reject({ message: 'emitSensorsData catch', error: error.toJsonString('emitSensorsData > catch')});
+            reject({ message: 'gatherMachineData catch', error: error.toJsonString('gatherMachineData > catch')});
          });
    });
 }
@@ -315,7 +315,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
    // whatever the request state is, return the actual state of the bulb.
    let val = _optocoupler_Gpio.readSync();
    if(_DebugLevel >= LogLevel.important && val != bulbState)
-      log({message: 'Bulb state', currentState: val, requested: bulbState, currentTime, from});
+      log({message: 'RPi pin state update failed.', currentState: val, requested: bulbState, from});
 
    return val;
 }
