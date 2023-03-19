@@ -1,11 +1,10 @@
 const { exec, spawn } = require('child_process');
-const Gpio = require('onoff').Gpio; //include onoff to interact with the GPIO
+const Gpio = require('onoff').Gpio; // Include onoff to interact with the GPIO pins
 const { firestoreService, DB } = require('./firestoreService');
 //const server = require('http').createServer(handleRequest);
 
-//const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const LightConditions = { GoodLight: 180, MediumLight: 180, LightDark: 195, MediumDark: 196, Dark: 220, Blackhole: 255 };
+const LightConditions = { GoodLight: 180, MediumLight: 180, LightDark: 194, MediumDark: 197, Dark: 220, Blackhole: 255 };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval_AllDay = 5 * 60 * 1000;
@@ -16,7 +15,6 @@ const _Optocoupler_Pin = 16;
 const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
 var _values = { bulbControlMode: BulbControlModes.manual, bulbState: OFF };
 var _time_;
-
 
 process.on('warning', error => log({ message: 'Node warning.', error: error.toJsonString()}));
 process.on('SIGINT', () => {
