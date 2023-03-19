@@ -14,7 +14,7 @@ const ON = 1;
 const OFF = Number(!ON);
 const _Optocoupler_Pin = 16;
 const _optocoupler_Gpio = new Gpio(_Optocoupler_Pin, 'out');
-var _values = { bulbControlMode: 1, bulbState: OFF };
+var _values = { bulbControlMode: BulbControlModes.manual, bulbState: OFF };
 var _time_;
 
 
@@ -97,8 +97,7 @@ firestoreService.attachListenerOnDocument(DB.Collections.values, 'reboot__from-c
 });
 
 // This method shouldn't be called by anywhere else.
-// Otherwise, this function will be registered to setTimeout
-// multiple times.
+// Otherwise, this function will be registered to setTimeout multiple times.
 (function monitorEnvironment()
 {
    let isSleepTime = false;
