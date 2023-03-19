@@ -5,7 +5,7 @@ const { firestoreService, DB } = require('./firestoreService');
 
 //const _port = 8080;
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const LightConditions = { GoodLight: 180, MediumLight: 180, LightDark: 190, MediumDark: 198, Dark: 220, Blackhole: 255 };
+const LightConditions = { GoodLight: 180, MediumLight: 180, LightDark: 195, MediumDark: 196, Dark: 220, Blackhole: 255 };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval_AllDay = 5 * 60 * 1000;
