@@ -4,7 +4,7 @@ const { firestoreService, DB } = require('./firestoreService');
 //const server = require('http').createServer(handleRequest);
 
 const LogLevel = { none: 0, important: 1, medium: 2, verbose: 3 };
-const LightConditions = { GoodLight: 180, MediumLight: 180, LightDark: 194, MediumDark: 197, Dark: 220, Blackhole: 255 };
+const LightConditions = { GoodLight: 180, MediumLight: 195, LightDark: 210, Dark: 216, VeryDark: 225, Blackhole: 255 };
 const BulbControlModes = { sensor: 1, manual: 2 }
 const _DebugLevel = LogLevel.important;
 const _SensorMonitorInterval_AllDay = 5 * 60 * 1000;
@@ -318,7 +318,7 @@ function controlBulb(roomLightValue, bulbControlMode, bulbState, toggleBulb, fro
 }
 
 function isTimeToSleep(lightConditionValue) {
-   return lightConditionValue < LightConditions.MediumDark && [23, 0].includes(new Date().getHours());
+   return lightConditionValue < LightConditions.Dark && [23, 0, 1].includes(new Date().getHours());
 }
 
 function log(logData) {
