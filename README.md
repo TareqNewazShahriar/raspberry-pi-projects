@@ -9,7 +9,7 @@ sensors using Python scripts.
 * Sensors: Photoresistor, Thermistor
 * Circuitry: Optocoupler, Bridge rectifier
 
-## Required packages
+## Required Packages
 **Python Packages**  
 * `pip3`: to install python3 packages.
 * `smbus2`
